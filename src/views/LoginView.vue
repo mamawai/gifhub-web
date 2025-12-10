@@ -2,11 +2,14 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Eye, EyeOff, Mail, Lock, MessageSquare, ArrowRight, Sparkles } from 'lucide-vue-next'
-import { login, getCode, emailRegister, getPublicKey, getUserInfo } from '@/api/user'
-import { setToken } from '@/utils/auth'
+import { getCode, emailRegister, getPublicKey } from '@/api/user'
+import { useUserStore } from '@/stores/user'
+import { useAppStore } from '@/stores/app'
 import rsaEncrypt from '@/utils/encrypt'
 
 const router = useRouter()
+const userStore = useUserStore()
+const appStore = useAppStore()
 const activeTab = ref<'password' | 'code'>('password')
 const showPassword = ref(false)
 
@@ -52,7 +55,7 @@ const handleGetCode = async () => {
       alert('Failed to send verification code')
     }
   } catch (err: unknown) {
-    const error = err as any
+    const error = err as Error
     alert(error.message || 'Error sending code')
   } finally {
     codeLoading.value = false
@@ -73,7 +76,7 @@ const startCountdown = () => {
 
 const handleLogin = async () => {
   if (!validateEmail(email.value)) {
-    alert('Invalid email format')
+    appStore.showToast('Invalid email format', 'warning')
     return
   }
 
@@ -92,27 +95,25 @@ const handleLogin = async () => {
       }
     }
 
-    const res = await login({
+    await userStore.login({
       loginType: activeTab.value === 'password' ? 1 : 2,
       email: email.value,
       password: finalPassword,
       verificationCode: code.value,
     })
 
-    if (res && res.token) {
-      setToken(res.token)
-      await getUserInfo()
-      router.push('/')
-    }
+    appStore.showToast('Welcome back!', 'success')
+    router.push('/')
   } catch (err: unknown) {
-    const error = err as any
+    const error = err as { code?: number; message?: string }
     console.error(error)
     if (error.code === 1001 && activeTab.value === 'code') {
       // Need registration
       registerCode.value = code.value
       showRegisterModal.value = true
+      appStore.showToast('Please set a password to complete registration', 'info')
     } else {
-      alert(error.message || 'Login failed')
+      appStore.showToast(error.message || 'Login failed', 'error')
     }
   } finally {
     loading.value = false
@@ -150,7 +151,7 @@ const handleRegister = async () => {
       }
     }
   } catch (err: unknown) {
-    const error = err as any
+    const error = err as Error
     alert(error.message || 'Registration failed')
   }
 }

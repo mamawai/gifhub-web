@@ -1,6 +1,13 @@
 import request from '@/utils/request'
 import config from '@/config'
-import type { EmailLoginDTO, LoginResultVO, UserInfoVO } from '@/api/types'
+import type {
+  EmailLoginDTO,
+  LoginResultVO,
+  UserInfoVO,
+  EmailRegisterDTO,
+  GetUserGifsParams,
+  WeixinLoginDTO,
+} from '@/api/types'
 
 /**
  * 获取公钥
@@ -15,7 +22,7 @@ export function getPublicKey() {
 /**
  * 邮箱注册
  */
-export function emailRegister(data: any) {
+export function emailRegister(data: EmailRegisterDTO) {
   return request({
     url: '/user/register/email',
     method: 'POST',
@@ -52,5 +59,82 @@ export function getUserInfo() {
   return request<UserInfoVO>({
     url: '/user/checkAndGet',
     method: 'GET',
+  })
+}
+
+/**
+ * 获取用户上传的GIF列表
+ */
+export function getUserGifs(params: GetUserGifsParams) {
+  return request({
+    baseUrl: config.gifUrl,
+    url: `/gif/my`,
+    method: 'GET',
+    params,
+  })
+}
+
+/**
+ * 删除用户上传的GIF
+ */
+export function deleteGif(id: string | number) {
+  return request({
+    baseUrl: config.gifUrl,
+    url: `/gif/${id}`,
+    method: 'DELETE',
+  })
+}
+
+/**
+ * 更新用户昵称
+ */
+export function updateNickname(params: { nickname: string }) {
+  return request({
+    baseUrl: config.gifUrl,
+    url: '/gif/updateNickname',
+    method: 'PUT',
+    params,
+  })
+}
+
+/**
+ * 注销账号
+ */
+export function deleteAccount(data: { password: string }) {
+  return request({
+    url: '/user/delete',
+    method: 'POST',
+    data,
+  })
+}
+
+/**
+ * 登出
+ */
+export function logout() {
+  return request({
+    url: '/user/logout',
+    method: 'POST',
+  })
+}
+
+/**
+ * 邮箱是否验证
+ */
+export function isEmailVerified() {
+  return request<boolean>({
+    url: '/user/isEmailVerified',
+    method: 'GET',
+  })
+}
+
+/**
+ * 微信登录
+ */
+export function weixinLogin(data: WeixinLoginDTO) {
+  return request({
+    url: '/wechat/login',
+    method: 'POST',
+    data,
   })
 }

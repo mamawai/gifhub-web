@@ -3,7 +3,7 @@ import config from '@/config'
 import { getToken, removeToken } from '@/utils/auth'
 
 // Define interfaces for response
-interface ApiResponse<T = any> {
+interface ApiResponse<T = unknown> {
   status: number
   message: string
   data: T
@@ -19,7 +19,7 @@ const service: AxiosInstance = axios.create({
 
 // Request interceptor
 service.interceptors.request.use(
-  (config: any) => {
+  (config) => {
     // Add token if available
     const token = getToken()
     const isSkipToken = config.headers?.isToken === false
@@ -30,7 +30,7 @@ service.interceptors.request.use(
 
     return config
   },
-  (error: any) => {
+  (error: unknown) => {
     console.error('Request Error:', error)
     return Promise.reject(error)
   },
@@ -44,7 +44,8 @@ service.interceptors.response.use(
 
     // Success
     if (code === 200) {
-      return res.data // Return the actual data directly to match miniprogram behavior
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return res.data as any // Return the actual data directly to match miniprogram behavior
     }
 
     // Auth error
@@ -60,7 +61,7 @@ service.interceptors.response.use(
     console.error(`API Error ${code}: ${res.message}`)
     return Promise.reject(new Error(res.message || 'Error'))
   },
-  (error: any) => {
+  (error: unknown) => {
     console.error('Network Error:', error)
     return Promise.reject(error)
   },
@@ -70,17 +71,17 @@ service.interceptors.response.use(
  * Generic request wrapper to match the miniprogram's usage
  * @param options Request options
  */
-const request = <T = any>(options: {
+const request = <T = unknown>(options: {
   url: string
   method?: string
-  data?: any
-  params?: any
+  data?: unknown
+  params?: unknown
   baseUrl?: string
-  headers?: any
+  headers?: Record<string, string>
 }) => {
   const { url, method = 'GET', baseUrl = config.baseUrl, ...rest } = options
 
-  return service.request<any, T>({
+  return service.request<unknown, T>({
     url: (baseUrl ? baseUrl : config.baseUrl) + url,
     method,
     ...rest,

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Heart, Maximize2 } from 'lucide-vue-next'
-import type { GifDTO } from '@/api/gif'
+import type { GifDTO } from '@/api/types'
 
 const props = defineProps<{
   gif: GifDTO
@@ -11,9 +11,14 @@ const emit = defineEmits<{
   (e: 'click', gif: GifDTO): void
 }>()
 
+const cardRef = ref<HTMLElement | null>(null)
 const isHovered = ref(false)
-const isPressed = ref(false)
 const isLiked = ref(false)
+
+// Tilt State
+const rotateX = ref(0)
+const rotateY = ref(0)
+const scale = ref(1)
 
 // Calculate aspect ratio
 const aspectRatio =
@@ -27,12 +32,36 @@ const displayUrl = computed(() => {
   return props.gif.fileUrl || props.gif.url
 })
 
-const handlePress = () => {
-  isPressed.value = true
+const cardStyle = computed(() => {
+  return {
+    aspectRatio: aspectRatio,
+    transform: `perspective(1000px) rotateX(${rotateX.value}deg) rotateY(${rotateY.value}deg) scale3d(${scale.value}, ${scale.value}, ${scale.value})`,
+  }
+})
+
+const handleMouseMove = (e: MouseEvent) => {
+  if (!cardRef.value) return
+
+  const rect = cardRef.value.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  const y = e.clientY - rect.top
+  const centerX = rect.width / 2
+  const centerY = rect.height / 2
+
+  // Calculate rotation (max 10 degrees)
+  const rotateXValue = ((y - centerY) / centerY) * -10
+  const rotateYValue = ((x - centerX) / centerX) * 10
+
+  rotateX.value = rotateXValue
+  rotateY.value = rotateYValue
+  scale.value = 1.02
 }
 
-const handleRelease = () => {
-  isPressed.value = false
+const handleMouseLeave = () => {
+  isHovered.value = false
+  rotateX.value = 0
+  rotateY.value = 0
+  scale.value = 1
 }
 
 const handleClick = () => {
@@ -42,21 +71,15 @@ const handleClick = () => {
 
 <template>
   <div
+    ref="cardRef"
     class="gif-card"
-    :class="{ 'is-pressed': isPressed }"
     @mouseenter="isHovered = true"
-    @mouseleave="
-      () => {
-        isHovered = false
-        isPressed = false
-      }
-    "
-    @mousedown="handlePress"
-    @mouseup="handleRelease"
+    @mousemove="handleMouseMove"
+    @mouseleave="handleMouseLeave"
     @click="handleClick"
-    :style="{ aspectRatio }"
+    :style="cardStyle"
   >
-    <!-- Video Element: Hide controls explicitly via CSS/Attributes -->
+    <!-- Video Element: Ensure controls are hidden -->
     <video
       v-if="isVideo"
       :src="displayUrl"
@@ -66,6 +89,7 @@ const handleClick = () => {
       playsinline
       disablePictureInPicture
       class="gif-content no-controls"
+      oncontextmenu="return false;"
     ></video>
     <img v-else :src="displayUrl" loading="lazy" :alt="gif.title || 'GIF'" class="gif-content" />
 
@@ -95,27 +119,26 @@ const handleClick = () => {
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--color-surface);
-  transition:
-    transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-    box-shadow 0.2s;
+  box-shadow: var(--shadow-md);
   break-inside: avoid; /* Essential for masonry */
   margin-bottom: 1rem;
   cursor: pointer;
-  display: block;
   transform-style: preserve-3d;
   will-change: transform;
+  transition: box-shadow 0.2s ease;
+  /* Remove transition on transform during mousemove for instant response, add it back on mouseleave via JS if needed, or keeping it short */
+}
+
+/* Add transition for smooth reset */
+.gif-card:not(:hover) {
+  transition:
+    transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 0.5s;
 }
 
 .gif-card:hover {
-  transform: translateY(-4px);
   z-index: 10;
-  box-shadow: var(--shadow-lg);
-}
-
-.gif-card.is-pressed {
-  /* Press/Tilt Effect */
-  transform: scale(0.98) rotateX(2deg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-xl);
 }
 
 .gif-content {

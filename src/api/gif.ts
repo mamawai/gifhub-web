@@ -1,36 +1,42 @@
 import request from '@/utils/request'
+import axios from 'axios'
 import config from '@/config'
-
-// Define interfaces roughly based on usage context
-export interface GifDTO {
-  id?: number | string
-  url?: string
-  width?: number
-  height?: number
-  title?: string
-  [key: string]: any
-}
+import { getToken } from '@/utils/auth'
+import type {
+  UploadGifDTO,
+  BatchUploadGifDTO,
+  LikeOrDislikeDTO,
+  IsLikeThisParams,
+  GetUserLikeListParams,
+  HotGifsParams,
+  GifDTO,
+  LatestGifsParams,
+} from '@/api/types'
 
 /**
- * 第一次获取随机GIF列表
+ * 第一次获取随机GIF列表（返回完整响应以获取 message）
  */
 export function getRandomGifListFirst() {
-  return request<GifDTO[]>({
-    baseUrl: config.gifUrl,
-    url: '/gif/randomGifs',
-    method: 'GET',
-  })
+  return axios
+    .get<{
+      status: number
+      message: string
+      data: GifDTO[]
+    }>(`${config.gifUrl}/gif/randomGifs`, { headers: { satoken: getToken() || '' } })
+    .then((res) => res.data)
 }
 
 /**
- * 获取随机GIF列表
+ * 获取随机GIF列表（返回完整响应以获取 message）
  */
 export function getRandomGifList(id: number | string) {
-  return request<GifDTO[]>({
-    baseUrl: config.gifUrl,
-    url: '/gif/randomGifs/' + id,
-    method: 'GET',
-  })
+  return axios
+    .get<{
+      status: number
+      message: string
+      data: GifDTO[]
+    }>(`${config.gifUrl}/gif/randomGifs/${id}`, { headers: { satoken: getToken() || '' } })
+    .then((res) => res.data)
 }
 
 /**
@@ -56,9 +62,31 @@ export function getGifDetail(id: string | number) {
 }
 
 /**
+ * 上传GIF
+ */
+export function uploadGif(data: UploadGifDTO) {
+  return request({
+    url: '/gif/r2upload',
+    method: 'POST',
+    data,
+  })
+}
+
+/**
+ * 批量上传GIF
+ */
+export function batchUploadGif(data: BatchUploadGifDTO) {
+  return request({
+    url: '/gif/r2BatchUpload',
+    method: 'POST',
+    data,
+  })
+}
+
+/**
  * 点赞或取消点赞
  */
-export function likeOrDislike(data: any) {
+export function likeOrDislike(data: LikeOrDislikeDTO) {
   return request({
     baseUrl: config.gifUrl,
     url: `/gif/likeOrDislike`,
@@ -70,7 +98,7 @@ export function likeOrDislike(data: any) {
 /**
  * 判断用户是否已经点赞过此GIF
  */
-export function isLikeThis(params: any) {
+export function isLikeThis(params: IsLikeThisParams) {
   return request({
     baseUrl: config.gifUrl,
     url: `/gif/isLikeThis`,
@@ -82,7 +110,7 @@ export function isLikeThis(params: any) {
 /**
  * 获取用户点赞列表
  */
-export function getUserLikeList(params: any) {
+export function getUserLikeList(params: GetUserLikeListParams) {
   return request({
     baseUrl: config.gifUrl,
     url: `/gif/likeByCategory`,
@@ -134,10 +162,22 @@ export function likeGiphy(data: {
 /**
  * 查询热度最高gif
  */
-export function hotGifs(params: any) {
+export function hotGifs(params: HotGifsParams) {
   return request({
     baseUrl: config.gifUrl,
     url: '/gif/hot',
+    method: 'GET',
+    params,
+  })
+}
+
+/**
+ * 查询最新gif
+ */
+export function latestGifs(params: LatestGifsParams) {
+  return request({
+    baseUrl: config.gifUrl,
+    url: '/gif/latest',
     method: 'GET',
     params,
   })

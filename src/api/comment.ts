@@ -89,3 +89,18 @@ export function deleteComment(commentId: string) {
     method: 'DELETE',
   })
 }
+
+/**
+ * 获取用户点赞的评论历史
+ */
+export function getLikeHistory(params: { pageNum?: number; pageSize?: number }) {
+  return request({
+    baseUrl: config.gifUrl,
+    url: '/comment/likeHistory',
+    method: 'GET',
+    params: {
+      pageNum: params.pageNum || 1,
+      pageSize: params.pageSize || 10,
+    },
+  })
+}

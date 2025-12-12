@@ -34,10 +34,12 @@ watch(
 <template>
   <ToastNotification />
   <div class="router-view-container">
-    <RouterView v-slot="{ Component }">
+    <RouterView v-slot="{ Component, route }">
       <Transition :name="transitionName" mode="default">
         <!-- mode="default" is important for simultaneous transitions -->
-        <component :is="Component" class="view-content" />
+        <KeepAlive :include="['HomeView']">
+          <component :is="Component" :key="route.path" class="view-content" />
+        </KeepAlive>
       </Transition>
     </RouterView>
   </div>

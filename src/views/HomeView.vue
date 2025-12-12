@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, onActivated, onDeactivated, nextTick, watch } from 'vue'
+
+defineOptions({
+  name: 'HomeView',
+})
+
 import { useRouter } from 'vue-router'
 import { Search } from 'lucide-vue-next'
 import NavBar from '@/components/NavBar.vue'
@@ -167,11 +172,6 @@ const handleGifClick = (gif: GifDTO) => {
 //   }, 200)
 // }
 
-onMounted(() => {
-  window.addEventListener('scroll', handleScroll)
-  fetchGifs()
-})
-
 const handleSearch = () => {
   // TODO: 实现搜索逻辑
   console.log('Search query:', searchQuery.value)
@@ -219,18 +219,49 @@ watch(sortType, () => {
   updateGlider()
 })
 
+// 合并所有 onMounted 逻辑到一个钩子中
 onMounted(() => {
-  // Initialize glider position
+  // 初始化滑块位置
   updateGlider()
-})
-
-onMounted(() => {
+  // 添加滚动监听器
   window.addEventListener('scroll', handleScroll)
+  // 加载数据（只调用一次）
   fetchGifs()
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
+})
+
+// KeepAlive 生命周期钩子
+onActivated(() => {
+  // 组件被激活时重新添加滚动监听器
+  window.addEventListener('scroll', handleScroll)
+
+  // 恢复所有视频的播放
+  nextTick(() => {
+    const videos = document.querySelectorAll('.home-view video')
+    videos.forEach((video) => {
+      const videoElement = video as HTMLVideoElement
+      if (videoElement.paused) {
+        videoElement.play().catch((err) => {
+          console.log('Video play failed:', err)
+        })
+      }
+    })
+  })
+})
+
+onDeactivated(() => {
+  // 组件被停用时移除滚动监听器
+  window.removeEventListener('scroll', handleScroll)
+
+  // 暂停所有视频以节省资源
+  const videos = document.querySelectorAll('.home-view video')
+  videos.forEach((video) => {
+    const videoElement = video as HTMLVideoElement
+    videoElement.pause()
+  })
 })
 </script>
 
@@ -264,15 +295,17 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Search Bar -->
-        <div class="search-bar" :class="{ disabled: isSearchDisabled }">
+        <!-- Search Bar (隐藏在随机模式下) -->
+        <div
+          v-show="sortType !== 'random'"
+          class="search-bar"
+          :class="{ disabled: isSearchDisabled }"
+        >
           <Search class="search-icon" :size="20" />
           <input
             v-model="searchQuery"
             type="text"
-            :placeholder="
-              isSearchDisabled ? '随机模式下搜索不可用' : 'Search for GIFs, Stickers...'
-            "
+            placeholder="Search for GIFs, Stickers..."
             :disabled="isSearchDisabled"
             @keyup.enter="handleSearch"
           />
@@ -552,6 +585,10 @@ onUnmounted(() => {
 
 .search-bar.disabled .search-icon {
   opacity: 0.5;
+}
+
+.feed {
+  margin-top: 2rem;
 }
 
 .masonry-grid {

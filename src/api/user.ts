@@ -47,7 +47,7 @@ export function login(data: EmailLoginDTO) {
 export function getCode(params: { email: string }) {
   return request<boolean>({
     url: '/user/web/code',
-    method: 'GET',
+    method: 'POST',
     params,
   })
 }

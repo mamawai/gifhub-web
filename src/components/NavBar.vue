@@ -165,20 +165,25 @@ const navigateTo = (path: string) => {
 
 .navbar-content {
   height: 100%;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 1rem;
+  position: relative;
 }
 
 .logo {
-  justify-self: center;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   text-decoration: none;
   transition: transform 0.3s ease;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 .logo:hover {
-  transform: scale(1.05);
+  transform: translateX(-50%) scale(1.05);
 }
 
 .aurora-text {
@@ -254,14 +259,15 @@ const navigateTo = (path: string) => {
 .nav-links {
   display: flex;
   gap: 0.5rem;
-  justify-self: start;
+  z-index: 1;
 }
 
 .actions {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  justify-self: end;
+  z-index: 1;
+  margin-left: auto;
 }
 
 .nav-item {

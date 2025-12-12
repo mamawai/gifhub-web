@@ -187,7 +187,6 @@ const handleRegister = async () => {
     <div class="login-wrapper">
       <div class="brand-section">
         <div class="logo-container">
-          <Sparkles class="logo-icon" :size="32" />
           <h1>Gif<span class="highlight">Hub</span></h1>
         </div>
         <p class="tagline">Explore the infinite universe of motion.</p>

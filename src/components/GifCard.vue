@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Heart, Maximize2 } from 'lucide-vue-next'
+import { Heart } from 'lucide-vue-next'
 import type { GifDTO } from '@/api/types'
 
 const props = defineProps<{
@@ -95,17 +95,18 @@ const handleClick = () => {
 
     <div class="overlay" :class="{ visible: isHovered }">
       <div class="overlay-content">
-        <div class="actions">
-          <button class="action-btn" @click.stop="isLiked = !isLiked" :class="{ active: isLiked }">
-            <Heart :size="18" :fill="isLiked ? 'currentColor' : 'none'" />
+        <!-- 底部栏：标题和爱心按钮在同一行 -->
+        <div class="bottom-bar">
+          <div class="info" v-if="gif.title">
+            <p class="title">{{ gif.title }}</p>
+          </div>
+          <button
+            class="action-btn like-btn"
+            @click.stop="isLiked = !isLiked"
+            :class="{ active: isLiked }"
+          >
+            <Heart :size="20" :fill="isLiked ? 'currentColor' : 'none'" />
           </button>
-          <button class="action-btn" @click.stop="handleClick">
-            <Maximize2 :size="18" />
-          </button>
-        </div>
-
-        <div class="info" v-if="gif.title">
-          <p class="title">{{ gif.title }}</p>
         </div>
       </div>
     </div>
@@ -119,26 +120,48 @@ const handleClick = () => {
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--color-surface);
-  box-shadow: var(--shadow-md);
+  /* 增强的默认阴影 */
+  box-shadow:
+    0 4px 12px -2px rgba(0, 0, 0, 0.15),
+    0 2px 6px -1px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(0, 0, 0, 0.08);
   break-inside: avoid; /* Essential for masonry */
   margin-bottom: 1rem;
   cursor: pointer;
   transform-style: preserve-3d;
   will-change: transform;
-  transition: box-shadow 0.2s ease;
-  /* Remove transition on transform during mousemove for instant response, add it back on mouseleave via JS if needed, or keeping it short */
+  transition: box-shadow 0.3s ease;
 }
 
 /* Add transition for smooth reset */
 .gif-card:not(:hover) {
   transition:
     transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
-    box-shadow 0.5s;
+    box-shadow 0.5s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .gif-card:hover {
   z-index: 10;
-  box-shadow: var(--shadow-xl);
+  /* 浅绿色霓虹发光阴影 - 多层渐变光晕效果 */
+  box-shadow:
+    0 0 20px rgba(52, 211, 153, 0.6),
+    /* 翡翠绿内层光晕 */ 0 0 40px rgba(16, 185, 129, 0.4),
+    /* 深翠绿中层光晕 */ 0 0 60px rgba(110, 231, 183, 0.3),
+    /* 薄荷绿外层光晕 */ 0 0 80px rgba(52, 211, 153, 0.2),
+    /* 翡翠绿最外层 */ 0 8px 16px -2px rgba(0, 0, 0, 0.2),
+    /* 底部阴影增强深度 */ 0 0 0 1px rgba(52, 211, 153, 0.2); /* 边框光晕 */
+  animation: neonPulse 2s ease-in-out infinite;
+}
+
+/* 霓虹脉动动画 */
+@keyframes neonPulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.1);
+  }
 }
 
 .gif-content {
@@ -179,15 +202,22 @@ const handleClick = () => {
   flex-direction: column;
   gap: 0.5rem;
   width: 100%;
+  height: 100%;
 }
 
-.actions {
+/* 底部栏：标题和爱心在同一行 */
+.bottom-bar {
   display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;
+  width: 100%;
+}
+
+/* 爱心按钮 */
+.like-btn {
+  flex-shrink: 0; /* 防止按钮被压缩 */
   pointer-events: auto; /* Enable button clicks */
 }
 
@@ -220,7 +250,8 @@ const handleClick = () => {
 }
 
 .info {
-  margin-top: auto;
+  flex: 1; /* 让标题占据剩余空间 */
+  min-width: 0; /* 允许文字溢出省略 */
 }
 
 .title {

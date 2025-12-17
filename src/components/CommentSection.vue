@@ -32,6 +32,7 @@ const newComment = ref('')
 const submitting = ref(false)
 const submitSuccess = ref(false)
 const cursor = ref('1970-01-01T00:00:00')
+const currentPage = ref(1)
 const hasMore = ref(true)
 const maxCommentLength = 100
 
@@ -72,18 +73,22 @@ const fetchComments = async (isLoadMore = false) => {
   try {
     if (!isLoadMore) {
       // 首次加载：并行获取热门评论和普通评论
+      // 重置分页状态
+      cursor.value = '1970-01-01T00:00:00'
+      currentPage.value = 1
+
       const [hotResponse, allResponse] = await Promise.all([
         getHotComments(props.gifId),
         getRootComments({
           gifId: props.gifId,
-          cursor: '1970-01-01T00:00:00',
-          page: 1,
+          cursor: cursor.value,
+          page: currentPage.value,
           limit: 10,
         }),
       ])
 
       // 解析热门评论
-      let hotComments: CommentVO[] = []
+      let hotComments: CommentVO[]
       if (Array.isArray(hotResponse)) {
         hotComments = hotResponse
       } else {
@@ -94,7 +99,7 @@ const fetchComments = async (isLoadMore = false) => {
       }
 
       // 解析普通评论
-      let normalComments: CommentVO[] = []
+      let normalComments: CommentVO[]
       if (Array.isArray(allResponse)) {
         normalComments = allResponse
       } else {
@@ -122,26 +127,28 @@ const fetchComments = async (isLoadMore = false) => {
         comment._rootSeq = index
       })
 
-      // 更新游标
-      if (normalComments.length > 0) {
-        const lastComment = normalComments[normalComments.length - 1]
-        if (lastComment) {
+      // 更新游标：使用去重后的最后一条普通评论的创建时间
+      if (uniqueNormalComments.length > 0) {
+        const lastComment = uniqueNormalComments[uniqueNormalComments.length - 1]
+        if (lastComment?.createdAt) {
           cursor.value = lastComment.createdAt
         }
       }
 
-      // 判断是否还有更多
+      // 判断是否还有更多：基于原始返回的评论数量
       hasMore.value = normalComments.length >= 10
     } else {
-      // 加载更多：只加载普通评论
+      // 加载更多：页码递增
+      currentPage.value += 1
+
       const response = await getRootComments({
         gifId: props.gifId,
         cursor: cursor.value,
-        page: 1,
+        page: currentPage.value,
         limit: 10,
       })
 
-      let newComments: CommentVO[] = []
+      let newComments: CommentVO[]
       if (Array.isArray(response)) {
         newComments = response
       } else {
@@ -168,10 +175,10 @@ const fetchComments = async (isLoadMore = false) => {
       // 追加到列表末尾
       allComments.value.push(...uniqueNewComments)
 
-      // 更新游标
-      if (newComments.length > 0) {
-        const lastComment = newComments[newComments.length - 1]
-        if (lastComment) {
+      // 更新游标：使用去重后的最后一条评论的创建时间
+      if (uniqueNewComments.length > 0) {
+        const lastComment = uniqueNewComments[uniqueNewComments.length - 1]
+        if (lastComment?.createdAt) {
           cursor.value = lastComment.createdAt
         }
       }
@@ -447,7 +454,7 @@ const handleDelete = async (data: {
 }) => {
   if (!confirm('确定要删除这条评论吗？')) return
 
-  const commentId = typeof data === 'string' ? data : data.commentId
+  const commentId = data.commentId
   const _rootSeq = data._rootSeq
   const _rootSource = data._rootSource
   const isChild = data.isChild
@@ -461,7 +468,7 @@ const handleDelete = async (data: {
 
     if (!isChild) {
       // 删除根评论
-      let comment = null
+      let comment
       if (_rootSource === 'new') {
         // 用户新增的评论
         comment = newRootComments.value[_rootSeq]
@@ -536,22 +543,35 @@ const handleLoadMoreChildren = async (data: { rootCommentId: string; _rootSeq: n
 
   try {
     // 判断当前是否有子评论来获取游标
-    const rootComment = allComments.value[_rootSeq]
+    const rootComment = allComments.value[_rootSeq] as CommentVO & {
+      _childPage?: number
+      _childCursor?: string
+    }
     if (!rootComment) return
+
+    // 初始化子评论分页信息
+    if (!rootComment._childPage) {
+      rootComment._childPage = 1
+      rootComment._childCursor = '1970-01-01T00:00:00'
+    }
 
     const cursor =
       rootComment.children && rootComment.children.length > 0
-        ? rootComment.children[rootComment.children.length - 1]?.createdAt || '1970-01-01T00:00:00'
-        : '1970-01-01T00:00:00'
+        ? rootComment.children[rootComment.children.length - 1]?.createdAt ||
+          rootComment._childCursor
+        : rootComment._childCursor
+
+    // 页码递增
+    rootComment._childPage += 1
 
     const response = await getChildComments({
       rootCommentId: rootCommentId,
       cursor: cursor,
-      page: 1,
+      page: rootComment._childPage,
       limit: 10,
     })
 
-    let children: CommentVO[] = []
+    let children: CommentVO[]
     if (Array.isArray(response)) {
       children = response
     } else {
@@ -578,7 +598,10 @@ const updateCommentChildren = (_rootSeq: number, children: CommentVO[]) => {
     child._rootSeq = _rootSeq
   })
 
-  const rootComment = allComments.value[_rootSeq]
+  const rootComment = allComments.value[_rootSeq] as CommentVO & {
+    _childPage?: number
+    _childCursor?: string
+  }
   if (!rootComment) return
 
   if (rootComment.children && rootComment.children.length > 0) {
@@ -587,9 +610,23 @@ const updateCommentChildren = (_rootSeq: number, children: CommentVO[]) => {
     const uniqueChildren = children.filter((c) => !existingIds.has(c.id))
     // 追加到末尾
     rootComment.children.push(...uniqueChildren)
+
+    // 更新游标
+    if (uniqueChildren.length > 0) {
+      const lastChild = uniqueChildren[uniqueChildren.length - 1]
+      if (lastChild?.createdAt) {
+        rootComment._childCursor = lastChild.createdAt
+      }
+    }
   } else {
     // 初始化
     rootComment.children = children
+    if (children.length > 0) {
+      const lastChild = children[children.length - 1]
+      if (lastChild?.createdAt) {
+        rootComment._childCursor = lastChild.createdAt
+      }
+    }
   }
 }
 
@@ -709,7 +746,7 @@ onMounted(() => {
                 replyTo ? `回复 ${replyTo.nickname}` : '发表评论'
               }}</span>
             </div>
-            <button class="close-btn" @click="closeCommentBox" type="button">
+            <button class="close-btn" @click="closeCommentBox">
               <span class="close-icon">×</span>
             </button>
           </div>
@@ -1912,7 +1949,6 @@ onMounted(() => {
     transform: scale(1.15);
   }
 }
-
 .comment-item.is-hot {
   background: linear-gradient(135deg, rgba(255, 107, 0, 0.05), rgba(255, 193, 7, 0.05));
   border-left: 3px solid #ff6b00;

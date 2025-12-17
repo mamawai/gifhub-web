@@ -26,6 +26,25 @@ export const useAppStore = defineStore('app', () => {
         removeToast(id)
       }, duration)
     }
+
+    return id
+  }
+
+  function updateToast(
+    id: number,
+    message: string,
+    type?: 'success' | 'error' | 'info' | 'warning',
+  ) {
+    const index = toasts.value.findIndex((t) => t.id === id)
+    if (index !== -1) {
+      const currentToast = toasts.value[index]!
+      toasts.value[index] = {
+        id: currentToast.id,
+        message,
+        type: type || currentToast.type,
+        duration: currentToast.duration,
+      }
+    }
   }
 
   function removeToast(id: number) {
@@ -38,6 +57,7 @@ export const useAppStore = defineStore('app', () => {
   return {
     toasts,
     showToast,
+    updateToast,
     removeToast,
   }
 })

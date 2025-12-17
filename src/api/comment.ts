@@ -1,11 +1,12 @@
 import request from '@/utils/request'
 import config from '@/config'
 import type { CommentVO } from '@/api/types'
+import type { CommentDTO } from '@/api/types'
 
 /**
  * Add Comment
  */
-export function addComment(data: { gifId: string | number; content: string; parentId?: string }) {
+export function addComment(data: CommentDTO) {
   return request<{ id: string }>({
     baseUrl: config.gifUrl,
     url: '/comment/add',

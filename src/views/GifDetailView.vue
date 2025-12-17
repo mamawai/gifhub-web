@@ -17,6 +17,8 @@ const appStore = useAppStore()
 const gif = ref<GifDTO | null>(null)
 const loading = ref(true)
 const showCollectionModal = ref(false)
+const isDownloading = ref(false)
+const downloadProgress = ref(0)
 
 const isVideo = computed(() => {
   if (!gif.value?.url) return false
@@ -86,22 +88,88 @@ const handleCollectionSuccess = () => {
 }
 
 const handleDownload = async () => {
-  if (!gif.value?.url) return
+  if (!gif.value) return
+
+  if (isDownloading.value) {
+    appStore.showToast('正在下载中，请稍后', 'warning')
+    return
+  }
 
   try {
-    // Trigger download
-    const link = document.createElement('a')
-    link.href = gif.value.url
-    link.download = gif.value.title || 'gifhub-download.gif'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    isDownloading.value = true
+    downloadProgress.value = 0
 
-    // Update count
-    await updateDownloadCount(gif.value.id!)
-    gif.value.downloadCount = (gif.value.downloadCount || 0) + 1
+    // Get GIF URL
+    let downloadUrl = ''
+    if (gif.value.giphyId && gif.value.userId == '0') {
+      downloadUrl = `https://i.giphy.com/${gif.value.giphyId}.gif`
+    } else {
+      downloadUrl = gif.value.url || ''
+    }
+
+    const toastId = appStore.showToast('准备下载...', 'info', 0)
+
+    // Use XMLHttpRequest for progress tracking
+    const xhr = new XMLHttpRequest()
+    xhr.open('GET', downloadUrl, true)
+    xhr.responseType = 'blob'
+
+    let lastUpdate = 0
+    xhr.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const progress = Math.round((event.loaded / event.total) * 100)
+        const now = Date.now()
+        // Update every 500ms to avoid too many updates
+        if (now - lastUpdate > 500 || progress === 100) {
+          lastUpdate = now
+          downloadProgress.value = progress
+          appStore.updateToast(toastId, `下载中 ${progress}%`)
+        }
+      }
+    }
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const blob = xhr.response
+        const blobUrl = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = blobUrl
+        link.download = (gif.value!.title || 'gifhub-download') + '.gif'
+        link.style.display = 'none'
+        document.body.appendChild(link)
+        link.click()
+
+        setTimeout(() => {
+          document.body.removeChild(link)
+          URL.revokeObjectURL(blobUrl)
+        }, 100)
+
+        updateDownloadCount(gif.value!.id!)
+        gif.value!.downloadCount = (gif.value!.downloadCount || 0) + 1
+
+        appStore.updateToast(toastId, '下载成功', 'success')
+        setTimeout(() => appStore.removeToast(toastId), 3000)
+      } else {
+        appStore.updateToast(toastId, '下载失败，请重试', 'error')
+        setTimeout(() => appStore.removeToast(toastId), 3000)
+      }
+      isDownloading.value = false
+      downloadProgress.value = 0
+    }
+
+    xhr.onerror = () => {
+      appStore.updateToast(toastId, '下载失败，请重试', 'error')
+      setTimeout(() => appStore.removeToast(toastId), 3000)
+      isDownloading.value = false
+      downloadProgress.value = 0
+    }
+
+    xhr.send()
   } catch (error) {
     console.error('Download error', error)
+    appStore.showToast('下载失败，请重试', 'error')
+    isDownloading.value = false
+    downloadProgress.value = 0
   }
 }
 
@@ -123,9 +191,18 @@ onMounted(() => {
 
 <template>
   <div class="detail-view">
-    <button class="back-btn" @click="handleBack">
-      <ArrowLeft :size="24" />
-    </button>
+    <!-- Detail Page Header Bar -->
+    <div class="detail-header">
+      <div class="header-content">
+        <button class="back-btn-inline" @click="handleBack">
+          <ArrowLeft :size="20" />
+        </button>
+        <router-link to="/" class="logo">
+          <span class="aurora-text">GifHub</span>
+        </router-link>
+        <div class="spacer"></div>
+      </div>
+    </div>
 
     <div v-if="loading" class="loading">Loading...</div>
     <div v-else-if="!gif" class="error">GIF not found</div>
@@ -236,7 +313,116 @@ onMounted(() => {
 .detail-view {
   min-height: 100vh;
   background-color: var(--color-background);
-  padding-top: 80px;
+  padding-top: 72px;
+  overflow-x: hidden;
+}
+
+/* Detail Page Header */
+.detail-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border);
+  transition: all 0.3s ease;
+}
+
+:global(.dark) .detail-header {
+  background: rgba(9, 9, 11, 0.8);
+}
+
+.header-content {
+  height: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .header-content {
+    padding: 0 2rem;
+  }
+}
+
+.back-btn-inline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  color: var(--color-text-main);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.back-btn-inline:hover {
+  background: var(--color-surface-hover);
+  transform: translateX(-2px);
+}
+
+.logo {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-decoration: none;
+  transition: transform 0.3s ease;
+  z-index: 10;
+}
+
+.logo:hover {
+  transform: translateX(-50%) scale(1.05);
+}
+
+.aurora-text {
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  background: linear-gradient(
+    90deg,
+    #9933ff 0%,
+    #ff6666 25%,
+    #ffaa00 50%,
+    #ff6666 75%,
+    #9933ff 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: aurora-flow 4s linear infinite;
+  filter: drop-shadow(0 0 20px rgba(153, 51, 255, 0.6));
+}
+
+@keyframes aurora-flow {
+  0% {
+    background-position: 0% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.spacer {
+  width: 40px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .aurora-text {
+    font-size: 1.25rem;
+  }
 }
 
 .content-wrapper {
@@ -244,8 +430,15 @@ onMounted(() => {
   flex-direction: column;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
-  gap: 2rem;
+  padding: 1rem;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .content-wrapper {
+    padding: 2rem;
+    gap: 2rem;
+  }
 }
 
 /* Top Section: Image and Info Side by Side */
@@ -270,8 +463,6 @@ onMounted(() => {
   align-items: flex-start;
   justify-content: center;
   background: var(--color-background);
-  min-height: 400px;
-  max-height: 400px;
 }
 
 @media (min-width: 1024px) {
@@ -284,7 +475,6 @@ onMounted(() => {
 
 .gif-container {
   width: 100%;
-  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -296,11 +486,24 @@ onMounted(() => {
     0 2px 6px -1px rgba(0, 0, 0, 0.06);
 }
 
+@media (min-width: 1024px) {
+  .gif-container {
+    height: 100%;
+  }
+}
+
 .main-gif {
   width: 100%;
-  height: 100%;
-  max-height: 400px;
+  height: auto;
+  max-width: 100%;
   object-fit: contain;
+}
+
+@media (min-width: 1024px) {
+  .main-gif {
+    height: 100%;
+    max-height: 400px;
+  }
 }
 
 /* Hide video controls */
@@ -471,9 +674,18 @@ onMounted(() => {
 .comments-section {
   width: 100%;
   background: var(--color-background);
-  padding: 2rem;
+  padding: 1rem;
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
+  box-shadow:
+    0 4px 12px -2px rgba(0, 0, 0, 0.1),
+    0 2px 6px -1px rgba(0, 0, 0, 0.06);
+}
+
+@media (min-width: 768px) {
+  .comments-section {
+    padding: 2rem;
+  }
 }
 
 /* Loading & Error States */
@@ -489,39 +701,6 @@ onMounted(() => {
 
 .error {
   color: #ef4444;
-}
-
-/* Back Button */
-.back-btn {
-  position: fixed;
-  top: 100px;
-  left: 1rem;
-  z-index: 100;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  padding: 0.75rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  box-shadow:
-    0 4px 12px -2px rgba(0, 0, 0, 0.1),
-    0 2px 6px -1px rgba(0, 0, 0, 0.06);
-}
-
-.back-btn:hover {
-  background: var(--color-surface-hover);
-  transform: translateX(-4px);
-  box-shadow:
-    0 6px 16px -2px rgba(0, 0, 0, 0.15),
-    0 4px 8px -1px rgba(0, 0, 0, 0.08);
-}
-
-@media (min-width: 1024px) {
-  .back-btn {
-    left: 2rem;
-  }
 }
 
 /* Dark Mode Adjustments */

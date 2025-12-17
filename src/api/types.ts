@@ -29,6 +29,15 @@ export interface GifDTO {
 }
 
 /**
+ * 评论 DTO
+ */
+export interface CommentDTO {
+  gifId: number
+  content: string
+  parentId?: string
+}
+
+/**
  * 邮箱登录 DTO
  */
 export interface EmailLoginDTO {
@@ -57,6 +66,7 @@ export interface UserInfoVO {
   userId: number
   email: string
   nickname: string
+  avatar?: string
 }
 
 /**
@@ -78,6 +88,11 @@ export interface CommentVO {
   createdAt: string
   isLiked: boolean
   children?: CommentVO[]
+  // 前端扩展字段
+  _isDeleted?: boolean
+  _rootSeq?: number
+  _rootSource?: 'new' | undefined
+  _isHot?: boolean
 }
 
 /**

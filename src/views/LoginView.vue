@@ -184,7 +184,7 @@ const handleRegister = async () => {
       <div class="floater f-3">✨</div>
     </div>
 
-    <div class="login-wrapper">
+    <div class="login-wrapper animate-entrance">
       <div class="brand-section">
         <div class="logo-container">
           <h1>Gif<span class="highlight">Hub</span></h1>
@@ -239,7 +239,9 @@ const handleRegister = async () => {
                     <EyeOff v-else :size="20" />
                   </button>
                 </div>
-                <div class="forgot-link">Forgot password?</div>
+                <div class="input-footer">
+                  <div class="forgot-link">Forgot password?</div>
+                </div>
               </div>
 
               <!-- OTP Input -->
@@ -255,6 +257,9 @@ const handleRegister = async () => {
                   >
                     {{ codeText }}
                   </button>
+                </div>
+                <div class="input-footer">
+                  <!-- Reserved space to keep height stable -->
                 </div>
               </div>
             </div>
@@ -606,17 +611,20 @@ const handleRegister = async () => {
   display: flex;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 12px;
-  padding: 4px;
+  padding: 2px;
   margin-bottom: 2rem;
+  overflow: hidden;
 }
 
 .tabs-bg {
   position: absolute;
-  width: 50%;
-  height: calc(100% - 8px);
+  width: calc(50% - 2px);
+  height: calc(100% - 4px);
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 10px;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  left: 2px;
+  top: 2px;
 }
 
 .tab-btn {
@@ -639,6 +647,18 @@ const handleRegister = async () => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.input-group-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.input-footer {
+  height: 20px; /* Fixed height for the action area */
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 .input-group {
@@ -756,7 +776,6 @@ input:focus + .field-icon,
 }
 
 .forgot-link {
-  align-self: flex-end;
   font-size: 0.85rem;
   color: #6366f1;
   cursor: pointer;
@@ -796,6 +815,38 @@ input:focus + .field-icon,
 .modal p {
   color: #a1a1aa;
   margin-bottom: 2rem;
+}
+
+/* Entrance Animation */
+.animate-entrance {
+  animation: slide-up-fade 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes slide-up-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Updated Transition for Tab Content */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.3s ease;
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateX(10px);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-10px);
 }
 
 .modal-actions {

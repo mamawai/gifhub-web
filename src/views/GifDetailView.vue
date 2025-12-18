@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getGifDetail, updateDownloadCount } from '@/api/gif'
+import { getGifDetail, updateDownloadCount, isLikeThis, likeOrDislike } from '@/api/gif'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 import CommentSection from '@/components/CommentSection.vue'
 import AddToCollectionModal from '@/components/AddToCollectionModal.vue'
-import { Heart, Download, Eye, Share2, User, ArrowLeft, FolderPlus } from 'lucide-vue-next'
+import UserAvatar from '@/components/UserAvatar.vue'
+import { Heart, Download, Eye, Share2, ArrowLeft } from 'lucide-vue-next'
 import type { GifDTO } from '@/api/types'
 
 const route = useRoute()
@@ -19,6 +20,7 @@ const loading = ref(true)
 const showCollectionModal = ref(false)
 const isDownloading = ref(false)
 const downloadProgress = ref(0)
+const isLiked = ref(false)
 
 const isVideo = computed(() => {
   if (!gif.value?.url) return false
@@ -63,6 +65,11 @@ const fetchDetail = async () => {
       // If res is wrapped in data, unwrap it.
       const rawGif = (res as { data?: GifDTO }).data || res
       gif.value = processGifData(rawGif)
+
+      // 检查用户是否已喜欢此GIF
+      if (userStore.isLoggedIn) {
+        await checkIsLiked(id)
+      }
     }
   } catch (err) {
     console.error('Failed to load GIF', err)
@@ -71,18 +78,48 @@ const fetchDetail = async () => {
   }
 }
 
-// Open Collection Modal
-const handleLike = () => {
+// 检查用户是否已喜欢此GIF
+const checkIsLiked = async (fileId: string) => {
+  try {
+    const res = await isLikeThis({ fileId })
+    console.log('DEBUG: isLikeThis response:', res, 'type:', typeof res)
+    // request 拦截器已经解包了 res.data，所以 res 直接就是布尔值
+    isLiked.value = res === true
+    console.log('DEBUG: isLiked set to:', isLiked.value)
+  } catch (err) {
+    console.error('Failed to check like status', err)
+  }
+}
+
+// 处理点赞/取消点赞
+const handleLike = async () => {
   if (!userStore.isLoggedIn) {
-    appStore.showToast('Please login to collect', 'warning')
+    appStore.showToast('请先登录', 'warning')
     return
   }
-  showCollectionModal.value = true
+
+  if (!gif.value?.id) return
+
+  // 如果已经喜欢，直接取消点赞
+  if (isLiked.value) {
+    try {
+      await likeOrDislike({ fileId: gif.value.id.toString(), isLike: false })
+      isLiked.value = false
+      gif.value.likeCount = Math.max((gif.value.likeCount || 0) - 1, 0)
+      appStore.showToast('已取消收藏', 'success')
+    } catch (err) {
+      console.error('Failed to unlike', err)
+      appStore.showToast('操作失败', 'error')
+    }
+  } else {
+    // 如果未喜欢，打开收藏夹选择弹窗
+    showCollectionModal.value = true
+  }
 }
 
 const handleCollectionSuccess = () => {
   if (gif.value) {
-    ;(gif.value as GifDTO & { isLiked?: boolean }).isLiked = true // Visually mark as liked/collected
+    isLiked.value = true
     gif.value.likeCount = (gif.value.likeCount || 0) + 1
   }
 }
@@ -232,9 +269,7 @@ onMounted(() => {
           <!-- Header with User Info -->
           <div class="info-header">
             <div class="uploader-info">
-              <div class="avatar">
-                <User :size="20" />
-              </div>
+              <UserAvatar :nickname="gif.nickname || gif.giphyUsername || 'Anonymous'" :size="40" />
               <div class="meta">
                 <span class="username">{{ gif.nickname || gif.giphyUsername || 'Anonymous' }}</span>
                 <div class="date-source">
@@ -254,15 +289,8 @@ onMounted(() => {
 
           <!-- Action Buttons -->
           <div class="action-buttons">
-            <button
-              class="action-btn like-btn"
-              :class="{ active: (gif as GifDTO & { isLiked?: boolean }).isLiked }"
-              @click="handleLike"
-            >
-              <Heart
-                :size="24"
-                :fill="(gif as GifDTO & { isLiked?: boolean }).isLiked ? 'currentColor' : 'none'"
-              />
+            <button class="action-btn like-btn" :class="{ active: isLiked }" @click="handleLike">
+              <Heart :size="24" :fill="isLiked ? 'currentColor' : 'none'" />
               <span class="count">{{ gif.likeCount || 0 }}</span>
             </button>
 
@@ -273,10 +301,6 @@ onMounted(() => {
 
             <button class="action-btn share-btn" @click="handleShare">
               <Share2 :size="24" />
-            </button>
-
-            <button class="action-btn collection-btn" @click="handleLike">
-              <FolderPlus :size="24" />
             </button>
           </div>
 
@@ -547,17 +571,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  background: var(--color-surface-hover);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
 }
 
 .meta {

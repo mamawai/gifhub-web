@@ -57,9 +57,11 @@ service.interceptors.response.use(
       return Promise.reject(new Error('Session expired'))
     }
 
-    // Other errors
+    // Other errors - include full response in error
     console.error(`API Error ${code}: ${res.message}`)
-    return Promise.reject(new Error(res.message || 'Error'))
+    const error = new Error(res.message || 'Error') as Error & { response: ApiResponse }
+    error.response = res
+    return Promise.reject(error)
   },
   (error: unknown) => {
     console.error('Network Error:', error)

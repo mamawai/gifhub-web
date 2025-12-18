@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Upload, User, Menu, ChevronDown, Heart, Telescope } from 'lucide-vue-next'
+import { Upload, User, Menu, ChevronDown, Heart, Telescope, Mail } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import AnimatedThemeToggler from '@/components/AnimatedThemeToggler.vue'
+
+interface Notification {
+  id: number
+  title: string
+  content: string
+  time: string
+  read: boolean
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -12,9 +20,95 @@ const isScrolled = ref(false)
 const isDark = ref(false)
 const showNavMenu = ref(false)
 const showActionsMenu = ref(false)
+const showNotifications = ref(false)
+const notificationPage = ref(1)
+const notificationsPerPage = 10
+const notificationRef = ref<HTMLElement | null>(null)
+
+// Mock 通知数据
+const allNotifications = ref<Notification[]>([
+  {
+    id: 1,
+    title: '系统通知',
+    content: '欢迎来到 GifHub！开始你的创作之旅吧',
+    time: '2分钟前',
+    read: false,
+  },
+  {
+    id: 2,
+    title: '新功能上线',
+    content: 'GIF 详情页现已支持评论功能',
+    time: '1小时前',
+    read: false,
+  },
+  {
+    id: 3,
+    title: '点赞提醒',
+    content: '你的 GIF "夏日海滩" 获得了 10 个赞',
+    time: '3小时前',
+    read: true,
+  },
+  { id: 4, title: '评论回复', content: '有人回复了你的评论', time: '5小时前', read: false },
+  { id: 5, title: '系统维护', content: '系统将于今晚 23:00 进行维护', time: '1天前', read: true },
+  { id: 6, title: '收藏提醒', content: '你的 GIF 被收藏了 5 次', time: '2天前', read: true },
+  { id: 7, title: '新粉丝', content: '用户 "Alice" 关注了你', time: '3天前', read: true },
+  { id: 8, title: '热门推荐', content: '你的作品被推荐到首页', time: '4天前', read: true },
+  { id: 9, title: '活动通知', content: '参与创作大赛，赢取丰厚奖品', time: '5天前', read: true },
+  { id: 10, title: '系统更新', content: 'GifHub v2.0 已发布', time: '6天前', read: true },
+  {
+    id: 11,
+    title: '安全提醒',
+    content: '检测到异常登录，请确认是否为本人操作',
+    time: '7天前',
+    read: true,
+  },
+  { id: 12, title: '成就解锁', content: '恭喜你解锁"创作达人"成就', time: '8天前', read: true },
+])
+
+const unreadCount = computed(() => allNotifications.value.filter((n) => !n.read).length)
+const displayCount = computed(() => {
+  if (unreadCount.value > 99) return '99+'
+  return unreadCount.value
+})
+
+const displayedNotifications = computed(() => {
+  return allNotifications.value.slice(0, notificationPage.value * notificationsPerPage)
+})
+
+const hasMore = computed(() => {
+  return displayedNotifications.value.length < allNotifications.value.length
+})
+
+const toggleNotifications = () => {
+  showNotifications.value = !showNotifications.value
+  if (showNotifications.value) {
+    notificationPage.value = 1
+  }
+}
+
+const loadMore = () => {
+  notificationPage.value++
+}
+
+const markAsRead = (id: number) => {
+  const notification = allNotifications.value.find((n) => n.id === id)
+  if (notification) {
+    notification.read = true
+  }
+}
+
+const markAllAsRead = () => {
+  allNotifications.value.forEach((n) => (n.read = true))
+}
 
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 20
+}
+
+const handleClickOutside = (event: MouseEvent) => {
+  if (notificationRef.value && !notificationRef.value.contains(event.target as Node)) {
+    showNotifications.value = false
+  }
 }
 
 const toggleTheme = () => {
@@ -28,12 +122,14 @@ const toggleTheme = () => {
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
+  document.addEventListener('click', handleClickOutside)
   isDark.value = false
   document.documentElement.classList.remove('dark')
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
+  document.removeEventListener('click', handleClickOutside)
 })
 
 const handleLoginClick = () => {
@@ -99,6 +195,51 @@ const navigateTo = (path: string) => {
       <!-- Desktop Actions -->
       <div class="actions desktop-only">
         <AnimatedThemeToggler :is-dark="isDark" @toggle="toggleTheme" />
+
+        <!-- 通知按钮 -->
+        <div ref="notificationRef" class="notification-wrapper">
+          <button class="btn-icon notification-btn" @click="toggleNotifications">
+            <Mail :size="20" />
+            <span v-if="unreadCount > 0" class="notification-badge">{{ displayCount }}</span>
+          </button>
+
+          <!-- 通知下拉框 -->
+          <transition name="dropdown">
+            <div v-if="showNotifications" class="notification-dropdown">
+              <div class="notification-header">
+                <h3>通知</h3>
+                <button v-if="unreadCount > 0" class="mark-all-read" @click.stop="markAllAsRead">
+                  全部已读
+                </button>
+              </div>
+
+              <div class="notification-list">
+                <div
+                  v-for="notification in displayedNotifications"
+                  :key="notification.id"
+                  :class="['notification-item', { unread: !notification.read }]"
+                  @click="markAsRead(notification.id)"
+                >
+                  <div class="notification-content">
+                    <h4>{{ notification.title }}</h4>
+                    <p>{{ notification.content }}</p>
+                    <span class="notification-time">{{ notification.time }}</span>
+                  </div>
+                  <div v-if="!notification.read" class="unread-dot"></div>
+                </div>
+
+                <div v-if="displayedNotifications.length === 0" class="empty-notifications">
+                  <Mail :size="48" class="empty-icon" />
+                  <p>暂无通知</p>
+                </div>
+              </div>
+
+              <div v-if="hasMore" class="notification-footer">
+                <button class="load-more-btn" @click="loadMore">查看更多</button>
+              </div>
+            </div>
+          </transition>
+        </div>
 
         <button class="btn-icon" @click="handleUploadClick">
           <Upload :size="20" />
@@ -499,6 +640,204 @@ const navigateTo = (path: string) => {
 
   .nav-text {
     font-size: 0.9rem;
+  }
+}
+
+/* 通知相关样式 */
+.notification-wrapper {
+  position: relative;
+}
+
+.notification-btn {
+  position: relative;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: #ef4444;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+}
+
+.notification-dropdown {
+  position: absolute;
+  top: calc(100% + 0.75rem);
+  right: 0;
+  width: 380px;
+  max-height: 500px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.notification-header h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.mark-all-read {
+  font-size: 0.85rem;
+  color: var(--color-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.mark-all-read:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.notification-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item:hover {
+  background: var(--color-surface-hover);
+}
+
+.notification-item.unread {
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.notification-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-content h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem 0;
+  color: var(--color-text-main);
+}
+
+.notification-content p {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 0 0 0.5rem 0;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.notification-time {
+  font-size: 0.75rem;
+  color: var(--color-text-dim);
+}
+
+.unread-dot {
+  width: 8px;
+  height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 0.5rem;
+}
+
+.empty-notifications {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  color: var(--color-text-muted);
+}
+
+.empty-icon {
+  opacity: 0.3;
+  margin-bottom: 1rem;
+}
+
+.notification-footer {
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.load-more-btn {
+  width: 100%;
+  padding: 0.6rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-main);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.load-more-btn:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: all 0.2s ease;
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+@media (max-width: 768px) {
+  .notification-dropdown {
+    width: 320px;
+    max-height: 400px;
+  }
+
+  .notification-list {
+    max-height: 300px;
   }
 }
 </style>

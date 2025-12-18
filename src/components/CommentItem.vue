@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { Heart, MessageSquare, Trash2, ChevronDown, ChevronUp } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
+import UserAvatar from './UserAvatar.vue'
 import type { CommentVO } from '@/api/types'
 
 interface Props {
@@ -206,9 +207,12 @@ const handleChildDelete = (data: {
     <div class="comment-main">
       <!-- 用户头像 -->
       <div class="avatar-wrapper">
-        <div class="avatar">
-          <img :src="comment.avatar || '/placeholder.png'" alt="avatar" />
-        </div>
+        <UserAvatar
+          :nickname="comment.nickname"
+          :avatar="comment.avatar"
+          :size="isChild ? 28 : 36"
+          class="avatar"
+        />
       </div>
 
       <!-- 评论内容区 -->
@@ -351,11 +355,6 @@ const handleChildDelete = (data: {
   padding: 0.5rem 0;
 }
 
-.comment-item.is-child .avatar {
-  width: 28px;
-  height: 28px;
-}
-
 /* 分割线 */
 .comment-divider {
   height: 1px;
@@ -374,11 +373,6 @@ const handleChildDelete = (data: {
 }
 
 .avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: var(--color-surface-hover);
   border: 2px solid var(--color-border);
   transition: all 0.3s;
 }
@@ -386,12 +380,6 @@ const handleChildDelete = (data: {
 .avatar:hover {
   border-color: var(--color-primary);
   transform: scale(1.05);
-}
-
-.avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 /* ===== 评论内容 ===== */
@@ -754,16 +742,6 @@ const handleChildDelete = (data: {
   .comment-main {
     padding: 0.5rem 0;
     gap: 0.5rem;
-  }
-
-  .avatar {
-    width: 32px;
-    height: 32px;
-  }
-
-  .comment-item.is-child .avatar {
-    width: 24px;
-    height: 24px;
   }
 
   .nickname {

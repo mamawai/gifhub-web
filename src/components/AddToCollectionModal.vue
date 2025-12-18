@@ -36,7 +36,7 @@ const handleCreateCategory = async () => {
   if (!newCategoryName.value.trim()) return
   creating.value = true
   try {
-    await addCategory({ categoryName: newCategoryName.value })
+    await addCategory({ name: newCategoryName.value })
     newCategoryName.value = ''
     await fetchCategories()
     appStore.showToast('Folder created', 'success')
@@ -94,10 +94,10 @@ const handleConfirm = async () => {
     // Given the constraints, I will implement the UI and call `likeOrDislike` with `categoryId` added to the DTO casting.
 
     await likeOrDislike({
-      gifId: props.gifId,
+      fileId: props.gifId,
       isLike: true,
-      categoryId: selectedCategoryId.value,
-    } as { gifId: string | number; isLike: boolean; categoryId: number })
+      userLikeCategoryId: selectedCategoryId.value,
+    })
 
     emit('success', selectedCategoryId.value)
     emit('close')

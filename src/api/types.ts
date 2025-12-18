@@ -67,6 +67,7 @@ export interface UserInfoVO {
   email: string
   nickname: string
   avatar?: string
+  createTime?: string
 }
 
 /**
@@ -166,15 +167,16 @@ export interface BatchUploadGifDTO {
  * 点赞/取消点赞 DTO
  */
 export interface LikeOrDislikeDTO {
-  gifId: string | number
+  fileId: string | number
   isLike: boolean
+  userLikeCategoryId?: number
 }
 
 /**
  * 检查是否点赞参数
  */
 export interface IsLikeThisParams {
-  gifId: string | number
+  fileId: string | number
 }
 
 /**
@@ -233,7 +235,7 @@ export interface WeixinLoginDTO {
  * 添加分类参数
  */
 export interface AddCategoryParams {
-  categoryName: string
+  name: string
   description?: string
 }
 

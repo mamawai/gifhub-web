@@ -1,15 +1,20 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { Eye, EyeOff, Mail, Lock, MessageSquare, ArrowRight, Sparkles } from 'lucide-vue-next'
+import { Eye, EyeOff, Mail, Lock, MessageSquare, ArrowRight, Languages } from 'lucide-vue-next'
 import { getCode, emailRegister, getPublicKey } from '@/api/user'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
+import { useLocaleStore } from '@/stores/locale'
+import { messages } from '@/locales/messages'
 import rsaEncrypt from '@/utils/encrypt'
 
 const router = useRouter()
 const userStore = useUserStore()
 const appStore = useAppStore()
+const localeStore = useLocaleStore()
+const t = computed(() => messages[localeStore.locale].login)
+
 const activeTab = ref<'password' | 'code'>('password')
 const showPassword = ref(false)
 
@@ -22,7 +27,12 @@ const code = ref('')
 const loading = ref(false)
 const codeLoading = ref(false)
 const countdown = ref(0)
-const codeText = ref('Send Code')
+const codeText = computed(() => {
+  if (countdown.value > 0) {
+    return `${countdown.value}s`
+  }
+  return countdown.value === 0 && codeLoading.value ? t.value.sendCode : t.value.resend
+})
 
 // Register Modal
 const showRegisterModal = ref(false)
@@ -41,8 +51,7 @@ const switchTab = (tab: 'password' | 'code') => {
 const handleGetCode = async () => {
   if (countdown.value > 0 || codeLoading.value) return
   if (!validateEmail(email.value)) {
-    // Ideally use a toast here
-    alert('Please enter a valid email address')
+    alert(t.value.invalidEmail)
     return
   }
 
@@ -52,11 +61,11 @@ const handleGetCode = async () => {
     if (res === true) {
       startCountdown()
     } else {
-      alert('Failed to send verification code')
+      alert(t.value.sendCodeFailed)
     }
   } catch (err: unknown) {
     const error = err as Error
-    alert(error.message || 'Error sending code')
+    alert(error.message || t.value.errorSendingCode)
   } finally {
     codeLoading.value = false
   }
@@ -66,17 +75,15 @@ const startCountdown = () => {
   countdown.value = 60
   const timer = setInterval(() => {
     countdown.value--
-    codeText.value = `${countdown.value}s`
     if (countdown.value <= 0) {
       clearInterval(timer)
-      codeText.value = 'Resend'
     }
   }, 1000)
 }
 
 const handleLogin = async () => {
   if (!validateEmail(email.value)) {
-    appStore.showToast('Invalid email format', 'warning')
+    appStore.showToast(t.value.invalidEmailFormat, 'warning')
     return
   }
 
@@ -102,7 +109,7 @@ const handleLogin = async () => {
       verificationCode: code.value,
     })
 
-    appStore.showToast('Welcome back!', 'success')
+    appStore.showToast(t.value.welcomeBack, 'success')
     router.push('/')
   } catch (err: unknown) {
     const error = err as { code?: number; message?: string }
@@ -111,9 +118,9 @@ const handleLogin = async () => {
       // Need registration
       registerCode.value = code.value
       showRegisterModal.value = true
-      appStore.showToast('Please set a password to complete registration', 'info')
+      appStore.showToast(t.value.completeRegistration, 'info')
     } else {
-      appStore.showToast(error.message || 'Login failed', 'error')
+      appStore.showToast(error.message || t.value.loginFailed, 'error')
     }
   } finally {
     loading.value = false
@@ -122,11 +129,11 @@ const handleLogin = async () => {
 
 const handleRegister = async () => {
   if (!registerPassword.value || registerPassword.value.length < 6) {
-    alert('Password must be at least 6 characters')
+    alert(t.value.passwordMinLength)
     return
   }
   if (registerPassword.value !== registerConfirmPassword.value) {
-    alert('Passwords do not match')
+    alert(t.value.passwordsNotMatch)
     return
   }
 
@@ -143,7 +150,7 @@ const handleRegister = async () => {
           verificationCode: registerCode.value,
         })
 
-        alert('Account created successfully! Logging you in...')
+        alert(t.value.accountCreated)
         showRegisterModal.value = false
         activeTab.value = 'password'
         password.value = registerPassword.value
@@ -152,13 +159,22 @@ const handleRegister = async () => {
     }
   } catch (err: unknown) {
     const error = err as Error
-    alert(error.message || 'Registration failed')
+    alert(error.message || t.value.registrationFailed)
   }
 }
 </script>
 
 <template>
   <div class="login-view">
+    <!-- Language Switcher -->
+    <button
+      class="language-switcher"
+      @click="localeStore.toggleLocale()"
+      title="切换语言 / Switch Language"
+    >
+      <Languages :size="20" />
+      <span>{{ localeStore.locale === 'zh-CN' ? '中文' : 'EN' }}</span>
+    </button>
     <!-- Rainbow Stack Background (Horizontal Stripes arranged Vertically) -->
     <div class="rainbow-stack">
       <!-- Loop 1 -->
@@ -189,7 +205,7 @@ const handleRegister = async () => {
         <div class="logo-container">
           <h1>Gif<span class="highlight">Hub</span></h1>
         </div>
-        <p class="tagline">Explore the infinite universe of motion.</p>
+        <p class="tagline">{{ t.tagline }}</p>
       </div>
 
       <div class="card glass-effect">
@@ -205,10 +221,10 @@ const handleRegister = async () => {
             :class="['tab-btn', { active: activeTab === 'password' }]"
             @click="switchTab('password')"
           >
-            Password
+            {{ t.password }}
           </button>
           <button :class="['tab-btn', { active: activeTab === 'code' }]" @click="switchTab('code')">
-            OTP Code
+            {{ t.otpCode }}
           </button>
         </div>
 
@@ -217,22 +233,22 @@ const handleRegister = async () => {
             <div :key="activeTab" class="input-group-container">
               <!-- Shared Email Input -->
               <div class="input-group">
-                <label>Email Address</label>
+                <label>{{ t.emailAddress }}</label>
                 <div class="input-wrapper">
                   <Mail class="field-icon" :size="20" />
-                  <input v-model="email" type="email" placeholder="hello@example.com" />
+                  <input v-model="email" type="email" :placeholder="t.emailPlaceholder" />
                 </div>
               </div>
 
               <!-- Password Input -->
               <div v-if="activeTab === 'password'" class="input-group">
-                <label>Password</label>
+                <label>{{ t.passwordLabel }}</label>
                 <div class="input-wrapper">
                   <Lock class="field-icon" :size="20" />
                   <input
                     v-model="password"
                     :type="showPassword ? 'text' : 'password'"
-                    placeholder="••••••••"
+                    :placeholder="t.passwordPlaceholder"
                   />
                   <button class="eye-btn" @click="showPassword = !showPassword">
                     <Eye v-if="!showPassword" :size="20" />
@@ -240,16 +256,16 @@ const handleRegister = async () => {
                   </button>
                 </div>
                 <div class="input-footer">
-                  <div class="forgot-link">Forgot password?</div>
+                  <div class="forgot-link">{{ t.forgotPassword }}</div>
                 </div>
               </div>
 
               <!-- OTP Input -->
               <div v-if="activeTab === 'code'" class="input-group">
-                <label>Verification Code</label>
+                <label>{{ t.verificationCode }}</label>
                 <div class="input-wrapper">
                   <MessageSquare class="field-icon" :size="20" />
-                  <input v-model="code" type="text" placeholder="Enter 6-digit code" />
+                  <input v-model="code" type="text" :placeholder="t.verificationPlaceholder" />
                   <button
                     class="otp-btn"
                     :disabled="countdown > 0 || codeLoading"
@@ -266,7 +282,7 @@ const handleRegister = async () => {
           </transition>
 
           <button class="submit-btn" :disabled="loading" @click="handleLogin">
-            <span v-if="!loading">Continue</span>
+            <span v-if="!loading">{{ t.continue }}</span>
             <span v-else class="spinner-sm"></span>
             <ArrowRight v-if="!loading" :size="20" />
           </button>
@@ -277,12 +293,12 @@ const handleRegister = async () => {
     <!-- Register Modal (Glassmorphism) -->
     <div v-if="showRegisterModal" class="modal-overlay">
       <div class="modal glass-effect">
-        <h3>Welcome Aboard 🚀</h3>
-        <p>Set a secure password to complete your account.</p>
+        <h3>{{ t.welcomeAboard }}</h3>
+        <p>{{ t.setPassword }}</p>
 
         <div class="input-group">
           <div class="input-wrapper">
-            <input v-model="registerPassword" type="password" placeholder="New Password" />
+            <input v-model="registerPassword" type="password" :placeholder="t.newPassword" />
           </div>
         </div>
         <div class="input-group">
@@ -290,14 +306,14 @@ const handleRegister = async () => {
             <input
               v-model="registerConfirmPassword"
               type="password"
-              placeholder="Confirm Password"
+              :placeholder="t.confirmPassword"
             />
           </div>
         </div>
 
         <div class="modal-actions">
-          <button class="btn-text" @click="showRegisterModal = false">Cancel</button>
-          <button class="btn-primary" @click="handleRegister">Create Account</button>
+          <button class="btn-text" @click="showRegisterModal = false">{{ t.cancel }}</button>
+          <button class="btn-primary" @click="handleRegister">{{ t.createAccount }}</button>
         </div>
       </div>
     </div>
@@ -305,6 +321,45 @@ const handleRegister = async () => {
 </template>
 
 <style scoped>
+/* Language Switcher */
+.language-switcher {
+  position: fixed;
+  top: 2rem;
+  right: 2rem;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.language-switcher:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 640px) {
+  .language-switcher {
+    top: 1rem;
+    right: 1rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+}
+
 /* Core Layout */
 .login-view {
   min-height: 100vh;

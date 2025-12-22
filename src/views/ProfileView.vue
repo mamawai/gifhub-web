@@ -12,7 +12,7 @@ import {
 import { getUserLikeList as getUserLikeListApi } from '@/api/gif'
 import { getCategoryList } from '@/api/category'
 import GifGrid from '@/components/GifGrid.vue'
-import type { GifDTO } from '@/api/types'
+import type { GifDTO, UserLikeVO } from '@/api/types'
 import {
   Heart,
   Image as ImageIcon,
@@ -38,11 +38,14 @@ const userStore = useUserStore()
 const appStore = useAppStore()
 const activeTab = ref<'uploads' | 'likes'>('uploads')
 const uploadedGifs = ref<GifDTO[]>([])
-const likedGifs = ref<GifDTO[]>([])
+const likedGifs = ref<UserLikeVO[]>([])
 const categories = ref<{ id: number; categoryName: string; count: number }[]>([])
 const selectedCategoryId = ref<number | null>(null)
 const loading = ref(false)
 const loadingCategories = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(50)
+const hasMore = ref(true)
 const isEditingNickname = ref(false)
 const newNickname = ref('')
 const showSettingsMenu = ref(false)
@@ -112,21 +115,91 @@ const fetchCategories = async () => {
   }
 }
 
-const fetchLikesByCategory = async (categoryId: number) => {
+const fetchLikesByCategory = async (categoryId: number, isLoadMore = false) => {
   loading.value = true
-  selectedCategoryId.value = categoryId
+  if (!isLoadMore) {
+    selectedCategoryId.value = categoryId
+    currentPage.value = 1
+    likedGifs.value = []
+    hasMore.value = true
+  }
+
   try {
-    const res = await getUserLikeListApi({ categoryId, pageNum: 1, pageSize: 50 })
+    const res = await getUserLikeListApi({
+      categoryId,
+      pageNum: currentPage.value,
+      pageSize: pageSize.value,
+    })
     const list =
-      (res as { records?: GifDTO[]; data?: GifDTO[] })?.records ||
-      (res as { records?: GifDTO[]; data?: GifDTO[] })?.data ||
+      (res as { records?: UserLikeVO[]; data?: UserLikeVO[] })?.records ||
+      (res as { records?: UserLikeVO[]; data?: UserLikeVO[] })?.data ||
       (Array.isArray(res) ? res : [])
-    likedGifs.value = list.map(processGifData)
+
+    const processedList = list.map((item) => {
+      const processed = processGifData(item)
+      return {
+        ...processed,
+        userLikeTime: item.userLikeTime,
+      } as unknown as UserLikeVO
+    })
+
+    if (isLoadMore) {
+      likedGifs.value = [...likedGifs.value, ...processedList]
+    } else {
+      likedGifs.value = processedList
+    }
+
+    // 判断是否还有更多数据
+    hasMore.value = list.length === pageSize.value
+    if (hasMore.value) {
+      currentPage.value++
+    }
   } catch (err) {
     console.error('Fetch likes failed', err)
   } finally {
     loading.value = false
   }
+}
+
+// 加载更多点赞的 GIF
+const loadMoreLikes = () => {
+  if (selectedCategoryId.value && hasMore.value && !loading.value) {
+    fetchLikesByCategory(selectedCategoryId.value, true)
+  }
+}
+
+// 按日期分组点赞的 GIF
+const groupedLikedGifs = computed(() => {
+  const groups: { date: string; gifs: UserLikeVO[] }[] = []
+  const dateMap = new Map<string, UserLikeVO[]>()
+
+  likedGifs.value.forEach((gif) => {
+    // 提取日期部分（只到天）
+    const dateStr =
+      gif.userLikeTime.split('T')[0] || gif.userLikeTime.split(' ')[0] || gif.userLikeTime
+    if (!dateMap.has(dateStr)) {
+      dateMap.set(dateStr, [])
+    }
+    dateMap.get(dateStr)!.push(gif)
+  })
+
+  // 转换为数组并按日期降序排序
+  dateMap.forEach((gifs, date) => {
+    groups.push({ date, gifs })
+  })
+
+  groups.sort((a, b) => b.date.localeCompare(a.date))
+
+  return groups
+})
+
+// 格式化日期显示
+const formatDate = (dateStr: string) => {
+  const date = new Date(dateStr)
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  return `${year}年${month}月${day}日`
 }
 
 const switchTab = (tab: 'uploads' | 'likes') => {
@@ -433,10 +506,23 @@ onMounted(() => {
                   {{ categories.find((c) => c.id === selectedCategoryId)?.categoryName }}
                 </h2>
               </div>
-              <div v-if="loading" class="loading-container">
+              <div v-if="loading && currentPage === 1" class="loading-container">
                 <div class="spinner"></div>
               </div>
-              <GifGrid v-else-if="likedGifs.length > 0" :gifs="likedGifs" @click="handleGifClick" />
+              <div v-else-if="groupedLikedGifs.length > 0" class="grouped-gifs-container">
+                <div v-for="group in groupedLikedGifs" :key="group.date" class="date-group">
+                  <h3 class="date-header">{{ formatDate(group.date) }}</h3>
+                  <GifGrid :gifs="group.gifs as unknown as GifDTO[]" @click="handleGifClick" />
+                </div>
+                <div v-if="hasMore" class="load-more-container">
+                  <button v-if="!loading" class="btn-load-more glass-button" @click="loadMoreLikes">
+                    加载更多
+                  </button>
+                  <div v-else class="loading-container">
+                    <div class="spinner"></div>
+                  </div>
+                </div>
+              </div>
               <div v-else class="empty-state glass-panel">
                 <p>这个系列还在等待新的成员...</p>
               </div>
@@ -1140,6 +1226,79 @@ onMounted(() => {
 .category-name {
   font-size: 1.25rem;
   margin-bottom: 0.5rem;
+}
+
+/* Date Group Styles */
+.grouped-gifs-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+}
+
+.date-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.date-header {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-main);
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--color-border);
+  margin: 0;
+}
+
+.load-more-container {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 0;
+}
+
+.btn-load-more {
+  padding: 0.75rem 2rem;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  color: var(--color-primary);
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.btn-load-more:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.category-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  transition: color 0.2s;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  width: fit-content;
+}
+
+.back-link:hover {
+  color: var(--color-primary);
+}
+
+.selected-category-title {
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 0;
 }
 
 /* Transitions */

@@ -119,6 +119,13 @@ export interface GifVO {
 }
 
 /**
+ * 用户点赞 GIF VO（继承自 GifVO，增加点赞时间）
+ */
+export interface UserLikeVO extends GifVO {
+  userLikeTime: string // 用户点赞时间
+}
+
+/**
  * GIF 标签 VO
  */
 export interface GifTagVO {
@@ -254,6 +261,20 @@ export interface GetGifListByTagParams {
   tagId: string | number
   pageNum?: number
   pageSize?: number
+}
+
+/**
+ * 通知 VO
+ */
+export interface NotificationVO {
+  id: number
+  senderId: number
+  senderNickname: string
+  actionType: number // 1-点赞GIF, 2-点赞评论, 3-评论GIF, 4-回复评论
+  targetId: number
+  contentSnapshot: string
+  isRead: boolean
+  createTime: string
 }
 
 export * from './giphy-types'

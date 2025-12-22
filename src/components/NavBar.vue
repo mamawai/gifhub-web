@@ -1,104 +1,72 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Upload, User, Menu, ChevronDown, Heart, Telescope, Mail } from 'lucide-vue-next'
+import { Upload, User, Menu, ChevronDown, Heart, Telescope, Mail, Languages } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
+import { useNotificationStore } from '@/stores/notification'
+import { useLocaleStore } from '@/stores/locale'
+import { messages } from '@/locales/messages'
 import AnimatedThemeToggler from '@/components/AnimatedThemeToggler.vue'
-
-interface Notification {
-  id: number
-  title: string
-  content: string
-  time: string
-  read: boolean
-}
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const notificationStore = useNotificationStore()
+const localeStore = useLocaleStore()
+const t = computed(() => messages[localeStore.locale].navbar)
 const isScrolled = ref(false)
 const isDark = ref(false)
 const showNavMenu = ref(false)
 const showActionsMenu = ref(false)
 const showNotifications = ref(false)
-const notificationPage = ref(1)
-const notificationsPerPage = 10
 const notificationRef = ref<HTMLElement | null>(null)
 
-// Mock 通知数据
-const allNotifications = ref<Notification[]>([
-  {
-    id: 1,
-    title: '系统通知',
-    content: '欢迎来到 GifHub！开始你的创作之旅吧',
-    time: '2分钟前',
-    read: false,
-  },
-  {
-    id: 2,
-    title: '新功能上线',
-    content: 'GIF 详情页现已支持评论功能',
-    time: '1小时前',
-    read: false,
-  },
-  {
-    id: 3,
-    title: '点赞提醒',
-    content: '你的 GIF "夏日海滩" 获得了 10 个赞',
-    time: '3小时前',
-    read: true,
-  },
-  { id: 4, title: '评论回复', content: '有人回复了你的评论', time: '5小时前', read: false },
-  { id: 5, title: '系统维护', content: '系统将于今晚 23:00 进行维护', time: '1天前', read: true },
-  { id: 6, title: '收藏提醒', content: '你的 GIF 被收藏了 5 次', time: '2天前', read: true },
-  { id: 7, title: '新粉丝', content: '用户 "Alice" 关注了你', time: '3天前', read: true },
-  { id: 8, title: '热门推荐', content: '你的作品被推荐到首页', time: '4天前', read: true },
-  { id: 9, title: '活动通知', content: '参与创作大赛，赢取丰厚奖品', time: '5天前', read: true },
-  { id: 10, title: '系统更新', content: 'GifHub v2.0 已发布', time: '6天前', read: true },
-  {
-    id: 11,
-    title: '安全提醒',
-    content: '检测到异常登录，请确认是否为本人操作',
-    time: '7天前',
-    read: true,
-  },
-  { id: 12, title: '成就解锁', content: '恭喜你解锁"创作达人"成就', time: '8天前', read: true },
-])
-
-const unreadCount = computed(() => allNotifications.value.filter((n) => !n.read).length)
 const displayCount = computed(() => {
-  if (unreadCount.value > 99) return '99+'
-  return unreadCount.value
+  if (notificationStore.unreadCount > 99) return '99+'
+  return notificationStore.unreadCount
 })
 
-const displayedNotifications = computed(() => {
-  return allNotifications.value.slice(0, notificationPage.value * notificationsPerPage)
-})
+// 将 actionType 转换为可读文本
+const getActionText = (actionType: number, senderNickname: string) => {
+  const actions: Record<number, string> = {
+    1: '点赞了你的 GIF',
+    2: '点赞了你的评论',
+    3: '评论了你的 GIF',
+    4: '回复了你的评论',
+  }
+  return `${senderNickname} ${actions[actionType] || '与你互动'}`
+}
 
-const hasMore = computed(() => {
-  return displayedNotifications.value.length < allNotifications.value.length
-})
+// 格式化时间显示
+const formatTime = (timeStr: string) => {
+  const date = new Date(timeStr)
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  if (hours < 24) return `${hours}小时前`
+  if (days < 7) return `${days}天前`
+  return date.toLocaleDateString('zh-CN')
+}
 
 const toggleNotifications = () => {
   showNotifications.value = !showNotifications.value
-  if (showNotifications.value) {
-    notificationPage.value = 1
+  // 不再在这里fetch通知，通知由WebSocket推送
+}
+
+const markAsRead = async (id: number) => {
+  const notification = notificationStore.notifications.find((n) => n.id === id)
+  if (notification && !notification.isRead) {
+    await notificationStore.clearOneNotification(id)
   }
 }
 
-const loadMore = () => {
-  notificationPage.value++
-}
-
-const markAsRead = (id: number) => {
-  const notification = allNotifications.value.find((n) => n.id === id)
-  if (notification) {
-    notification.read = true
-  }
-}
-
-const markAllAsRead = () => {
-  allNotifications.value.forEach((n) => (n.read = true))
+const markAllAsRead = async () => {
+  await notificationStore.clearAllUnread()
 }
 
 const handleScroll = () => {
@@ -160,10 +128,10 @@ const navigateTo = (path: string) => {
       <!-- Desktop Navigation -->
       <div class="nav-links desktop-only">
         <router-link to="/" class="nav-item">
-          <span class="nav-text">What We Like</span>
+          <span class="nav-text">{{ t.whatWeLike }}</span>
         </router-link>
         <router-link to="/giphy" class="nav-item">
-          <span class="nav-text">GIPHY</span>
+          <span class="nav-text">{{ t.giphy }}</span>
         </router-link>
       </div>
 
@@ -177,11 +145,11 @@ const navigateTo = (path: string) => {
         <div v-if="showNavMenu" class="dropdown-menu">
           <button @click="navigateTo('/')" class="dropdown-item">
             <Heart :size="16" class="dropdown-icon" />
-            <span>What We Like</span>
+            <span>{{ t.whatWeLike }}</span>
           </button>
           <button @click="navigateTo('/giphy')" class="dropdown-item">
             <Telescope :size="16" class="dropdown-icon" />
-            <span>GIPHY</span>
+            <span>{{ t.giphy }}</span>
           </button>
         </div>
       </div>
@@ -194,48 +162,64 @@ const navigateTo = (path: string) => {
 
       <!-- Desktop Actions -->
       <div class="actions desktop-only">
+        <!-- 语言切换按钮 -->
+        <button
+          class="btn-icon language-btn"
+          @click="localeStore.toggleLocale()"
+          :title="localeStore.locale === 'zh-CN' ? t.switchToEnglish : t.switchToChinese"
+        >
+          <Languages :size="20" />
+        </button>
+
         <AnimatedThemeToggler :is-dark="isDark" @toggle="toggleTheme" />
 
         <!-- 通知按钮 -->
         <div ref="notificationRef" class="notification-wrapper">
           <button class="btn-icon notification-btn" @click="toggleNotifications">
             <Mail :size="20" />
-            <span v-if="unreadCount > 0" class="notification-badge">{{ displayCount }}</span>
+            <span v-if="notificationStore.hasUnread" class="notification-badge">{{
+              displayCount
+            }}</span>
           </button>
 
           <!-- 通知下拉框 -->
           <transition name="dropdown">
             <div v-if="showNotifications" class="notification-dropdown">
               <div class="notification-header">
-                <h3>通知</h3>
-                <button v-if="unreadCount > 0" class="mark-all-read" @click.stop="markAllAsRead">
-                  全部已读
+                <h3>{{ t.notifications }}</h3>
+                <button
+                  v-if="notificationStore.hasUnread"
+                  class="mark-all-read"
+                  @click.stop="markAllAsRead"
+                >
+                  {{ t.markAllRead }}
                 </button>
               </div>
 
               <div class="notification-list">
                 <div
-                  v-for="notification in displayedNotifications"
+                  v-for="notification in notificationStore.notifications"
                   :key="notification.id"
-                  :class="['notification-item', { unread: !notification.read }]"
+                  :class="['notification-item', { unread: !notification.isRead }]"
                   @click="markAsRead(notification.id)"
                 >
                   <div class="notification-content">
-                    <h4>{{ notification.title }}</h4>
-                    <p>{{ notification.content }}</p>
-                    <span class="notification-time">{{ notification.time }}</span>
+                    <h4>
+                      {{ getActionText(notification.actionType, notification.senderNickname) }}
+                    </h4>
+                    <p>{{ notification.contentSnapshot }}</p>
+                    <span class="notification-time">{{ formatTime(notification.createTime) }}</span>
                   </div>
-                  <div v-if="!notification.read" class="unread-dot"></div>
+                  <div v-if="!notification.isRead" class="unread-dot"></div>
                 </div>
 
-                <div v-if="displayedNotifications.length === 0" class="empty-notifications">
+                <div
+                  v-if="notificationStore.notifications.length === 0"
+                  class="empty-notifications"
+                >
                   <Mail :size="48" class="empty-icon" />
-                  <p>暂无通知</p>
+                  <p>{{ t.noNotifications }}</p>
                 </div>
-              </div>
-
-              <div v-if="hasMore" class="notification-footer">
-                <button class="load-more-btn" @click="loadMore">查看更多</button>
               </div>
             </div>
           </transition>
@@ -246,7 +230,7 @@ const navigateTo = (path: string) => {
         </button>
 
         <button v-if="!userStore.isLoggedIn" class="btn-primary" @click="handleLoginClick">
-          Login
+          {{ t.login }}
         </button>
         <button v-else class="btn-icon" @click="handleProfileClick">
           <User :size="20" />
@@ -259,20 +243,26 @@ const navigateTo = (path: string) => {
           <Menu :size="20" />
         </button>
         <div v-if="showActionsMenu" class="dropdown-menu dropdown-menu-right">
+          <button @click="localeStore.toggleLocale()" class="dropdown-item">
+            <Languages :size="16" class="dropdown-icon" />
+            <span>{{
+              localeStore.locale === 'zh-CN' ? t.switchToEnglish : t.switchToChinese
+            }}</span>
+          </button>
           <button @click="toggleTheme" class="dropdown-item">
-            {{ isDark ? '☀️ 浅色模式' : '🌙 深色模式' }}
+            {{ isDark ? t.lightMode : t.darkMode }}
           </button>
           <button @click="handleUploadClick" class="dropdown-item">
             <Upload :size="16" class="dropdown-icon" />
-            <span>上传</span>
+            <span>{{ t.upload }}</span>
           </button>
           <button v-if="!userStore.isLoggedIn" @click="handleLoginClick" class="dropdown-item">
             <User :size="16" class="dropdown-icon" />
-            <span>登录</span>
+            <span>{{ t.login }}</span>
           </button>
           <button v-else @click="handleProfileClick" class="dropdown-item">
             <User :size="16" class="dropdown-icon" />
-            <span>个人信息</span>
+            <span>{{ t.profile }}</span>
           </button>
         </div>
       </div>

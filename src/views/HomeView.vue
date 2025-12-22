@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, onActivated, onDeactivated, nextTick, watch } from 'vue'
+import {
+  ref,
+  onMounted,
+  onUnmounted,
+  onActivated,
+  onDeactivated,
+  nextTick,
+  watch,
+  computed,
+} from 'vue'
 
 defineOptions({
   name: 'HomeView',
@@ -12,8 +21,13 @@ import GifCard from '@/components/GifCard.vue'
 import { getRandomGifListFirst, getRandomGifList, hotGifs, latestGifs } from '@/api/gif'
 import { getGifsByTagId } from '@/api/tag'
 import type { GifDTO } from '@/api/types'
+import { useLocaleStore } from '@/stores/locale'
+import { messages } from '@/locales/messages'
 
 const router = useRouter()
+const localeStore = useLocaleStore()
+const t = computed(() => messages[localeStore.locale].home)
+
 const gifs = ref<GifDTO[]>([])
 const loading = ref(true)
 const loadingMore = ref(false)
@@ -227,6 +241,7 @@ onMounted(() => {
   window.addEventListener('scroll', handleScroll)
   // 加载数据（只调用一次）
   fetchGifs()
+  // 通知初始化已由 WebSocket 连接时统一处理，不需要在这里调用
 })
 
 onUnmounted(() => {
@@ -289,7 +304,7 @@ onDeactivated(() => {
               @click="handleSortChange(type as 'random' | 'hot' | 'time')"
             >
               <span class="btn-text">
-                {{ type === 'random' ? '随机' : type === 'hot' ? '热度' : '时间' }}
+                {{ type === 'random' ? t.random : type === 'hot' ? t.hot : t.time }}
               </span>
             </button>
           </div>
@@ -305,7 +320,7 @@ onDeactivated(() => {
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="Search for GIFs, Stickers..."
+            :placeholder="t.searchPlaceholder"
             :disabled="isSearchDisabled"
             @keyup.enter="handleSearch"
           />
@@ -313,7 +328,7 @@ onDeactivated(() => {
       </section>
 
       <section class="hero" v-if="gifs.length < 1 && !loading">
-        <h1 class="hero-title">Start Exploring</h1>
+        <h1 class="hero-title">{{ t.startExploring }}</h1>
       </section>
 
       <section class="feed container">
@@ -322,8 +337,8 @@ onDeactivated(() => {
         </div>
 
         <div v-else-if="error" class="error-state">
-          {{ error }}
-          <button @click="fetchGifs(false)">Retry</button>
+          {{ t.failedToLoad }}
+          <button @click="fetchGifs(false)">{{ t.retry }}</button>
         </div>
 
         <div v-else class="masonry-grid">
@@ -350,6 +365,7 @@ onDeactivated(() => {
   width: 100%;
   min-height: 100vh;
   background-color: var(--color-background);
+  position: relative;
 }
 
 .main-content {

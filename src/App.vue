@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { RouterView, useRoute } from 'vue-router'
 import ToastNotification from '@/components/ToastNotification.vue'
-import { ref, watch } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
+import { useUserStore } from '@/stores/user'
+import { useNotificationStore } from '@/stores/notification'
 
 const route = useRoute()
+const userStore = useUserStore()
+const notificationStore = useNotificationStore()
 const transitionName = ref('fade')
 
 watch(
@@ -29,6 +33,23 @@ watch(
     }
   },
 )
+
+// 监听用户登录状态，初始化通知
+watch(
+  () => userStore.isLoggedIn,
+  (isLoggedIn) => {
+    if (isLoggedIn) {
+      notificationStore.connect()
+    } else {
+      notificationStore.disconnect()
+    }
+  },
+  { immediate: true }, // 立即执行，无需在 onMounted 中重复调用
+)
+
+onUnmounted(() => {
+  notificationStore.disconnect()
+})
 </script>
 
 <template>

@@ -65,10 +65,22 @@ export function getGifDetail(id: string | number) {
  * 上传GIF
  */
 export function uploadGif(data: UploadGifDTO) {
+  const formData = new FormData()
+  formData.append('file', data.file)
+  formData.append('title', data.title)
+  formData.append('tags', data.tags)
+  if (data.description) {
+    formData.append('description', data.description)
+  }
+
   return request({
+    baseUrl: config.gifUrl,
     url: '/gif/r2upload',
     method: 'POST',
-    data,
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
   })
 }
 
@@ -77,6 +89,7 @@ export function uploadGif(data: UploadGifDTO) {
  */
 export function batchUploadGif(data: BatchUploadGifDTO) {
   return request({
+    baseUrl: config.gifUrl,
     url: '/gif/r2BatchUpload',
     method: 'POST',
     data,

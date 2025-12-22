@@ -154,7 +154,7 @@ const fetchGifs = async (isLoadMore = false) => {
     }
   } catch (err: unknown) {
     console.error(err)
-    error.value = 'Failed to load GIFs'
+    error.value = t.value.failedToLoad
   } finally {
     loading.value = false
     loadingMore.value = false
@@ -231,6 +231,13 @@ const updateGlider = async () => {
 
 watch(sortType, () => {
   updateGlider()
+})
+
+// 监听语言变化，更新滑块位置
+watch(() => localeStore.locale, () => {
+  nextTick(() => {
+    updateGlider()
+  })
 })
 
 // 合并所有 onMounted 逻辑到一个钩子中

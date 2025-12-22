@@ -4,9 +4,13 @@ import { useRouter } from 'vue-router'
 import { Upload, X, FileVideo, ArrowLeft } from 'lucide-vue-next'
 import { uploadGif } from '@/api/gif'
 import { useAppStore } from '@/stores/app'
+import { useLocaleStore } from '@/stores/locale'
+import { messages } from '@/locales/messages'
 
 const router = useRouter()
 const appStore = useAppStore()
+const localeStore = useLocaleStore()
+const t = computed(() => messages[localeStore.locale].upload)
 
 const handleBack = () => {
   if (window.history.length > 1) {
@@ -48,7 +52,7 @@ const handleDrop = (e: DragEvent) => {
   if (droppedFile && droppedFile.type.startsWith('image/')) {
     file.value = droppedFile
   } else {
-    appStore.showToast('Please upload an image file (GIF)', 'warning')
+    appStore.showToast(t.value.pleaseUploadImage, 'warning')
   }
 }
 
@@ -72,7 +76,7 @@ const handleSubmit = async () => {
     .map((t) => t.trim())
     .filter(Boolean)
   if (tagList.length > 3) {
-    appStore.showToast('Max 3 tags allowed', 'warning')
+    appStore.showToast(t.value.maxTagsWarning, 'warning')
     return
   }
 
@@ -84,10 +88,10 @@ const handleSubmit = async () => {
       tags: tags.value, // Pass as string per DTO
       description: description.value,
     })
-    appStore.showToast('Upload successful!', 'success')
+    appStore.showToast(t.value.uploadSuccess, 'success')
     router.push('/profile')
   } catch (error) {
-    appStore.showToast('Upload failed', 'error')
+    appStore.showToast(t.value.uploadFailed, 'error')
     console.error(error)
   } finally {
     uploading.value = false
@@ -124,10 +128,10 @@ const handleSubmit = async () => {
         <!-- Admin Review Warning -->
         <div class="admin-review-warning">
           <span class="warning-icon">⚠️</span>
-          <span class="warning-text">上传的内容需要管理员审核后才能公开展示</span>
+          <span class="warning-text">{{ t.adminReviewWarning }}</span>
         </div>
 
-        <h1 class="title">Upload GIF</h1>
+        <h1 class="title">{{ t.title }}</h1>
 
         <!-- Drag Drop Area -->
         <div
@@ -148,8 +152,8 @@ const handleSubmit = async () => {
 
           <div v-if="!file" class="upload-placeholder">
             <Upload :size="48" class="icon" />
-            <h3>Drag & drop your GIF here</h3>
-            <p>or click to browse</p>
+            <h3>{{ t.dragDropHere }}</h3>
+            <p>{{ t.orClickToBrowse }}</p>
           </div>
 
           <div v-else class="file-preview">
@@ -166,18 +170,18 @@ const handleSubmit = async () => {
 
         <!-- Form -->
         <div class="form-group">
-          <label>Title</label>
-          <input v-model="title" type="text" placeholder="Give it a catchy title" />
+          <label>{{ t.titleLabel }}</label>
+          <input v-model="title" type="text" :placeholder="t.titlePlaceholder" />
         </div>
 
         <div class="form-group">
-          <label>Tags <span class="hint">(Comma separated, max 3)</span></label>
-          <input v-model="tags" type="text" placeholder="funny, cat, meme" />
+          <label>{{ t.tagsLabel }} <span class="hint">{{ t.tagsHint }}</span></label>
+          <input v-model="tags" type="text" :placeholder="t.tagsPlaceholder" />
         </div>
 
         <div class="form-group">
-          <label>Description (Optional)</label>
-          <textarea v-model="description" placeholder="Tell us more about this GIF"></textarea>
+          <label>{{ t.descriptionLabel }}</label>
+          <textarea v-model="description" :placeholder="t.descriptionPlaceholder"></textarea>
         </div>
 
         <button
@@ -185,8 +189,8 @@ const handleSubmit = async () => {
           :disabled="!file || !title || !tags || uploading"
           @click="handleSubmit"
         >
-          <span v-if="!uploading">Upload GIF</span>
-          <span v-else>Uploading...</span>
+          <span v-if="!uploading">{{ t.uploadButton }}</span>
+          <span v-else>{{ t.uploading }}</span>
         </button>
       </div>
     </div>

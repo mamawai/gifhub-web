@@ -165,10 +165,11 @@ const navigateTo = (path: string) => {
         <!-- 语言切换按钮 -->
         <button
           class="btn-icon language-btn"
+          :class="{ active: localeStore.locale === 'en-US' }"
           @click="localeStore.toggleLocale()"
-          :title="localeStore.locale === 'zh-CN' ? t.switchToEnglish : t.switchToChinese"
+          :title="localeStore.locale === 'en-US' ? t.switchToChinese : t.switchToEnglish"
         >
-          <Languages :size="20" />
+          <span class="language-text">{{ localeStore.locale === 'zh-CN' ? '中' : 'EN' }}</span>
         </button>
 
         <AnimatedThemeToggler :is-dark="isDark" @toggle="toggleTheme" />
@@ -246,7 +247,7 @@ const navigateTo = (path: string) => {
           <button @click="localeStore.toggleLocale()" class="dropdown-item">
             <Languages :size="16" class="dropdown-icon" />
             <span>{{
-              localeStore.locale === 'zh-CN' ? t.switchToEnglish : t.switchToChinese
+              localeStore.locale === 'en-US' ? t.switchToChinese : t.switchToEnglish
             }}</span>
           </button>
           <button @click="toggleTheme" class="dropdown-item">
@@ -457,6 +458,16 @@ const navigateTo = (path: string) => {
 .btn-icon:hover {
   background: var(--color-surface-hover);
   color: var(--color-text-main);
+}
+
+.language-btn .language-text {
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.language-btn.active .language-text {
+  color: var(--color-primary);
 }
 
 .btn-primary {

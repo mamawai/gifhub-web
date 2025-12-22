@@ -3,6 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
+import { useLocaleStore } from '@/stores/locale'
+import { messages } from '@/locales/messages'
 import {
   getUserGifs as getUserGifsApi,
   updateNickname as updateNicknameApi,
@@ -36,6 +38,9 @@ const handleBack = () => {
 const router = useRouter()
 const userStore = useUserStore()
 const appStore = useAppStore()
+const localeStore = useLocaleStore()
+const t = computed(() => messages[localeStore.locale].profile)
+const tCommon = computed(() => messages[localeStore.locale].common)
 const activeTab = ref<'uploads' | 'likes'>('uploads')
 const uploadedGifs = ref<GifDTO[]>([])
 const likedGifs = ref<UserLikeVO[]>([])
@@ -224,10 +229,10 @@ const saveNickname = async () => {
     await updateNicknameApi({ nickname: newNickname.value.trim() })
     await userStore.fetchUserInfo()
     isEditingNickname.value = false
-    appStore.showToast('昵称修改成功', 'success')
+    appStore.showToast(t.value.nicknameUpdated, 'success')
   } catch (err) {
     const error = err as { response?: { message?: string }; message?: string }
-    const message = error?.response?.message || error?.message || '修改昵称失败'
+    const message = error?.response?.message || error?.message || t.value.updateNicknameFailed
     appStore.showToast(message, 'error')
     console.error('Update nickname failed', err)
   }
@@ -255,11 +260,11 @@ const joinDate = computed(() => {
 const handleLogout = async () => {
   try {
     await userStore.logout()
-    appStore.showToast('已退出登录', 'success')
+    appStore.showToast(t.value.loggedOut, 'success')
     router.push('/login')
   } catch (err) {
     const error = err as { response?: { message?: string }; message?: string }
-    const message = error?.response?.message || error?.message || '退出登录失败'
+    const message = error?.response?.message || error?.message || t.value.logoutFailed
     appStore.showToast(message, 'error')
   }
   showSettingsMenu.value = false
@@ -277,7 +282,7 @@ const closeDeleteAccountModal = () => {
 
 const confirmDeleteAccount = async () => {
   if (!deletePassword.value.trim()) {
-    appStore.showToast('请输入密码', 'warning')
+    appStore.showToast(t.value.enterPassword, 'warning')
     return
   }
 
@@ -294,12 +299,12 @@ const confirmDeleteAccount = async () => {
     }
 
     await deleteAccountApi({ password: encryptedPassword as string })
-    appStore.showToast('账号已注销', 'success')
+    appStore.showToast(t.value.accountDeleted, 'success')
     await userStore.logout()
     router.push('/login')
   } catch (err) {
     const error = err as { response?: { message?: string }; message?: string }
-    const message = error?.response?.message || error?.message || '注销账号失败'
+    const message = error?.response?.message || error?.message || t.value.deleteAccountFailed
     appStore.showToast(message, 'error')
   } finally {
     isDeleting.value = false
@@ -371,8 +376,8 @@ onMounted(() => {
                 <Edit2 :size="16" />
               </button>
               <div v-else class="edit-actions">
-                <button class="save-btn" @click="saveNickname">保存</button>
-                <button class="cancel-btn" @click="cancelEditNickname">取消</button>
+                <button class="save-btn" @click="saveNickname">{{ t.save }}</button>
+                <button class="cancel-btn" @click="cancelEditNickname">{{ t.cancel }}</button>
               </div>
             </div>
             <p class="email">{{ userStore.userInfo?.email }}</p>
@@ -386,11 +391,11 @@ onMounted(() => {
               <div v-if="showSettingsMenu" class="settings-menu glass-panel">
                 <button class="menu-item" @click="handleLogout">
                   <LogOut :size="18" />
-                  <span>退出登录</span>
+                  <span>{{ t.logout }}</span>
                 </button>
                 <button class="menu-item danger" @click="openDeleteAccountModal">
                   <Trash2 :size="18" />
-                  <span>注销账号</span>
+                  <span>{{ t.deleteAccount }}</span>
                 </button>
               </div>
             </transition>
@@ -401,17 +406,17 @@ onMounted(() => {
         <div class="stats-row">
           <div class="stat-item">
             <div class="stat-value">{{ uploadedGifs.length }}</div>
-            <div class="stat-label">我的杰作</div>
+            <div class="stat-label">{{ t.myMasterpieces }}</div>
           </div>
           <div class="stat-divider"></div>
           <div class="stat-item">
             <div class="stat-value">{{ categories.length }}</div>
-            <div class="stat-label">收集的心动</div>
+            <div class="stat-label">{{ t.collections }}</div>
           </div>
           <div class="stat-divider"></div>
           <div class="stat-item">
             <div class="stat-value">{{ daysJoined }}</div>
-            <div class="stat-label">入驻天数</div>
+            <div class="stat-label">{{ t.daysJoined }}</div>
             <div v-if="joinDate" class="stat-date">{{ joinDate }}</div>
           </div>
         </div>
@@ -433,7 +438,7 @@ onMounted(() => {
             @click="switchTab('uploads')"
           >
             <ImageIcon :size="18" />
-            <span>My Uploads</span>
+            <span>{{ t.myUploads }}</span>
           </button>
           <button
             class="tab-trigger"
@@ -441,7 +446,7 @@ onMounted(() => {
             @click="switchTab('likes')"
           >
             <Heart :size="18" />
-            <span>Likes</span>
+            <span>{{ t.likes }}</span>
           </button>
         </div>
       </div>
@@ -461,9 +466,9 @@ onMounted(() => {
             />
             <div v-else class="empty-state glass-panel">
               <div class="empty-icon">🚀</div>
-              <h3>你的银河空空如也</h3>
-              <p>探索更多动图，开始你的创作之旅吧！</p>
-              <button class="btn-primary" @click="router.push('/')">去首页看看</button>
+              <h3>{{ t.emptyUploads }}</h3>
+              <p>{{ t.emptyUploadsDesc }}</p>
+              <button class="btn-primary" @click="router.push('/')">{{ t.goToHome }}</button>
             </div>
           </div>
 
@@ -476,8 +481,8 @@ onMounted(() => {
               </div>
               <div v-else-if="categories.length === 0" class="empty-state glass-panel">
                 <div class="empty-icon">✨</div>
-                <h3>还没有收藏集</h3>
-                <p>看到喜欢的 GIF 时点击收藏，它们会在这里等待你。</p>
+                <h3>{{ t.noCollections }}</h3>
+                <p>{{ t.noCollectionsDesc }}</p>
               </div>
               <div v-else class="category-grid">
                 <div
@@ -490,7 +495,7 @@ onMounted(() => {
                     <Folder :size="32" class="category-icon" />
                   </div>
                   <h3 class="category-name">{{ cat.categoryName }}</h3>
-                  <p class="category-count">{{ cat.count || 0 }} GIFs</p>
+                  <p class="category-count">{{ cat.count || 0 }}{{ tCommon }}</p>
                 </div>
               </div>
             </div>
@@ -500,7 +505,7 @@ onMounted(() => {
               <div class="category-header">
                 <button class="back-link" @click="selectedCategoryId = null">
                   <ArrowLeft :size="18" />
-                  Back to Collections
+                  {{ t.backToCollections }}
                 </button>
                 <h2 class="selected-category-title">
                   {{ categories.find((c) => c.id === selectedCategoryId)?.categoryName }}
@@ -516,7 +521,7 @@ onMounted(() => {
                 </div>
                 <div v-if="hasMore" class="load-more-container">
                   <button v-if="!loading" class="btn-load-more glass-button" @click="loadMoreLikes">
-                    加载更多
+                    {{ t.loadMore }}
                   </button>
                   <div v-else class="loading-container">
                     <div class="spinner"></div>
@@ -524,7 +529,7 @@ onMounted(() => {
                 </div>
               </div>
               <div v-else class="empty-state glass-panel">
-                <p>这个系列还在等待新的成员...</p>
+                <p>{{ t.emptyCategory }}</p>
               </div>
             </div>
           </div>
@@ -536,26 +541,26 @@ onMounted(() => {
     <transition name="modal">
       <div v-if="showDeleteAccountModal" class="modal-overlay" @click="closeDeleteAccountModal">
         <div class="modal-content glass-panel" @click.stop>
-          <h2 class="modal-title">注销账号</h2>
+          <h2 class="modal-title">{{ t.deleteAccountTitle }}</h2>
           <p class="modal-warning">
-            ⚠️ 此操作将永久删除您的账号及所有相关数据，且邮箱24小时内无法重新注册。
+            {{ t.deleteAccountWarning }}
           </p>
           <div class="modal-form">
-            <label class="form-label">请输入密码确认</label>
+            <label class="form-label">{{ t.enterPassword }}</label>
             <input
               v-model="deletePassword"
               type="password"
               class="form-input"
-              placeholder="输入密码"
+              :placeholder="t.enterPassword"
               @keyup.enter="confirmDeleteAccount"
             />
           </div>
           <div class="modal-actions">
             <button class="btn-secondary" @click="closeDeleteAccountModal" :disabled="isDeleting">
-              取消
+              {{ t.cancel }}
             </button>
             <button class="btn-danger" @click="confirmDeleteAccount" :disabled="isDeleting">
-              {{ isDeleting ? '处理中...' : '确认注销' }}
+              {{ isDeleting ? t.deleting : t.confirmDelete }}
             </button>
           </div>
         </div>

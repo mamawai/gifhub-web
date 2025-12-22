@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { getGifDetail, updateDownloadCount, isLikeThis, likeOrDislike } from '@/api/gif'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
+import { useLocaleStore } from '@/stores/locale'
+import { messages } from '@/locales/messages'
 import CommentSection from '@/components/CommentSection.vue'
 import AddToCollectionModal from '@/components/AddToCollectionModal.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
@@ -14,6 +16,8 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const appStore = useAppStore()
+const localeStore = useLocaleStore()
+const t = computed(() => messages[localeStore.locale].detail)
 
 const gif = ref<GifDTO | null>(null)
 const loading = ref(true)
@@ -94,7 +98,7 @@ const checkIsLiked = async (fileId: string) => {
 // 处理点赞/取消点赞
 const handleLike = async () => {
   if (!userStore.isLoggedIn) {
-    appStore.showToast('请先登录', 'warning')
+    appStore.showToast(t.value.pleaseLogin, 'warning')
     return
   }
 
@@ -106,10 +110,10 @@ const handleLike = async () => {
       await likeOrDislike({ fileId: gif.value.id.toString(), isLike: false })
       isLiked.value = false
       gif.value.likeCount = Math.max((gif.value.likeCount || 0) - 1, 0)
-      appStore.showToast('已取消收藏', 'success')
+      appStore.showToast(t.value.unliked, 'success')
     } catch (err) {
       console.error('Failed to unlike', err)
-      appStore.showToast('操作失败', 'error')
+      appStore.showToast(t.value.operationFailed, 'error')
     }
   } else {
     // 如果未喜欢，打开收藏夹选择弹窗
@@ -128,7 +132,7 @@ const handleDownload = async () => {
   if (!gif.value) return
 
   if (isDownloading.value) {
-    appStore.showToast('正在下载中，请稍后', 'warning')
+    appStore.showToast(t.value.downloading, 'warning')
     return
   }
 
@@ -144,7 +148,7 @@ const handleDownload = async () => {
       downloadUrl = gif.value.url || ''
     }
 
-    const toastId = appStore.showToast('准备下载...', 'info', 0)
+    const toastId = appStore.showToast(t.value.downloading, 'info', 0)
 
     // Use XMLHttpRequest for progress tracking
     const xhr = new XMLHttpRequest()
@@ -184,10 +188,10 @@ const handleDownload = async () => {
         updateDownloadCount(gif.value!.id!)
         gif.value!.downloadCount = (gif.value!.downloadCount || 0) + 1
 
-        appStore.updateToast(toastId, '下载成功', 'success')
+        appStore.updateToast(toastId, t.value.downloadSuccess, 'success')
         setTimeout(() => appStore.removeToast(toastId), 3000)
       } else {
-        appStore.updateToast(toastId, '下载失败，请重试', 'error')
+        appStore.updateToast(toastId, t.value.downloadFailed, 'error')
         setTimeout(() => appStore.removeToast(toastId), 3000)
       }
       isDownloading.value = false
@@ -195,7 +199,7 @@ const handleDownload = async () => {
     }
 
     xhr.onerror = () => {
-      appStore.updateToast(toastId, '下载失败，请重试', 'error')
+      appStore.updateToast(toastId, t.value.downloadFailed, 'error')
       setTimeout(() => appStore.removeToast(toastId), 3000)
       isDownloading.value = false
       downloadProgress.value = 0
@@ -204,7 +208,7 @@ const handleDownload = async () => {
     xhr.send()
   } catch (error) {
     console.error('Download error', error)
-    appStore.showToast('下载失败，请重试', 'error')
+    appStore.showToast(t.value.downloadFailed, 'error')
     isDownloading.value = false
     downloadProgress.value = 0
   }
@@ -214,10 +218,10 @@ const handleShare = async () => {
   try {
     const url = window.location.href
     await navigator.clipboard.writeText(url)
-    appStore.showToast('链接已复制', 'success')
+    appStore.showToast(t.value.linkCopied, 'success')
   } catch (error) {
     console.error('Copy error', error)
-    appStore.showToast('复制失败，请重试', 'error')
+    appStore.showToast(t.value.copyFailed, 'error')
   }
 }
 
@@ -241,8 +245,8 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-if="loading" class="loading">Loading...</div>
-    <div v-else-if="!gif" class="error">GIF not found</div>
+    <div v-if="loading" class="loading">{{ t.loading }}</div>
+    <div v-else-if="!gif" class="error">{{ t.notFound }}</div>
     <div v-else class="content-wrapper">
       <!-- Top Section: Image and Info Side by Side -->
       <div class="top-section">
@@ -269,14 +273,14 @@ onMounted(() => {
           <!-- Header with User Info -->
           <div class="info-header">
             <div class="uploader-info">
-              <UserAvatar :nickname="gif.nickname || gif.giphyUsername || 'Anonymous'" :size="40" />
+              <UserAvatar :nickname="gif.nickname || gif.giphyUsername || t.anonymous" :size="40" />
               <div class="meta">
-                <span class="username">{{ gif.nickname || gif.giphyUsername || 'Anonymous' }}</span>
+                <span class="username">{{ gif.nickname || gif.giphyUsername || t.anonymous }}</span>
                 <div class="date-source">
                   <span class="date">{{
                     new Date(gif.createdAt || Date.now()).toLocaleDateString()
                   }}</span>
-                  <span v-if="gif.userId === '0'" class="giphy-badge">Powered by Giphy</span>
+                  <span v-if="gif.userId === '0'" class="giphy-badge">{{ t.poweredByGiphy }}</span>
                 </div>
               </div>
             </div>
@@ -284,7 +288,7 @@ onMounted(() => {
 
           <!-- Title -->
           <div class="title-section">
-            <h1 class="title">{{ gif.title || 'Untitled GIF' }}</h1>
+            <h1 class="title">{{ gif.title || t.untitled }}</h1>
           </div>
 
           <!-- Action Buttons -->
@@ -308,11 +312,11 @@ onMounted(() => {
           <div class="stats-bar">
             <div class="stat">
               <Eye :size="18" />
-              <span>{{ gif.viewCount || 0 }} views</span>
+              <span>{{ gif.viewCount || 0 }} {{ t.views }}</span>
             </div>
             <div class="stat">
               <Download :size="18" />
-              <span>{{ gif.downloadCount || 0 }} downloads</span>
+              <span>{{ gif.downloadCount || 0 }} {{ t.downloads }}</span>
             </div>
           </div>
         </div>

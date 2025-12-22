@@ -127,6 +127,12 @@ export type LocaleMessages = {
     downloadFailed: string
     linkCopied: string
     copyFailed: string
+    anonymous: string
+    untitled: string
+  }
+  common: {
+    gifs: string
+    mb: string
   }
 }
 
@@ -185,12 +191,12 @@ export const messages: Record<'zh-CN' | 'en-US', LocaleMessages> = {
       profile: '个人信息',
       lightMode: '☀️ 浅色模式',
       darkMode: '🌙 深色模式',
-      switchToEnglish: '切换到英文',
-      switchToChinese: 'Switch to Chinese',
+      switchToEnglish: 'Switch to English',
+      switchToChinese: '切换到中文',
     },
     profile: {
-      myUploads: 'My Uploads',
-      likes: 'Likes',
+      myUploads: '我的上传',
+      likes: '我的收藏',
       myMasterpieces: '我的杰作',
       collections: '收集的心动',
       daysJoined: '入驻天数',
@@ -199,7 +205,7 @@ export const messages: Record<'zh-CN' | 'en-US', LocaleMessages> = {
       goToHome: '去首页看看',
       noCollections: '还没有收藏集',
       noCollectionsDesc: '看到喜欢的 GIF 时点击收藏，它们会在这里等待你。',
-      backToCollections: 'Back to Collections',
+      backToCollections: '返回收藏集',
       emptyCategory: '这个系列还在等待新的成员...',
       loadMore: '加载更多',
       editNickname: '编辑昵称',
@@ -221,38 +227,38 @@ export const messages: Record<'zh-CN' | 'en-US', LocaleMessages> = {
       deleteAccountFailed: '注销账号失败',
     },
     upload: {
-      title: 'Upload GIF',
+      title: '上传 GIF',
       adminReviewWarning: '上传的内容需要管理员审核后才能公开展示',
-      dragDropHere: 'Drag & drop your GIF here',
-      orClickToBrowse: 'or click to browse',
-      titleLabel: 'Title',
-      titlePlaceholder: 'Give it a catchy title',
-      tagsLabel: 'Tags',
-      tagsHint: '(Comma separated, max 3)',
-      tagsPlaceholder: 'funny, cat, meme',
-      descriptionLabel: 'Description (Optional)',
-      descriptionPlaceholder: 'Tell us more about this GIF',
-      uploadButton: 'Upload GIF',
-      uploading: 'Uploading...',
-      uploadSuccess: 'Upload successful!',
-      uploadFailed: 'Upload failed',
-      maxTagsWarning: 'Max 3 tags allowed',
-      pleaseUploadImage: 'Please upload an image file (GIF)',
+      dragDropHere: '拖放 GIF 到这里',
+      orClickToBrowse: '或点击浏览',
+      titleLabel: '标题',
+      titlePlaceholder: '给它起个吸引人的标题',
+      tagsLabel: '标签',
+      tagsHint: '(逗号分隔，最多3个)',
+      tagsPlaceholder: '搞笑, 猫咪, 表情包',
+      descriptionLabel: '描述（可选）',
+      descriptionPlaceholder: '告诉我们更多关于这个 GIF 的信息',
+      uploadButton: '上传 GIF',
+      uploading: '上传中...',
+      uploadSuccess: '上传成功！',
+      uploadFailed: '上传失败',
+      maxTagsWarning: '最多允许3个标签',
+      pleaseUploadImage: '请上传图片文件（GIF）',
     },
     giphy: {
-      trending: 'Trending on GIPHY',
+      trending: 'GIPHY 热门',
       resultsFor: '搜索结果',
-      searchPlaceholder: 'Search GIPHY...',
-      noResults: 'No GIFs found.',
-      retry: 'Retry',
-      failedToLoad: 'Failed to load GIFs',
+      searchPlaceholder: '搜索 GIPHY...',
+      noResults: '未找到 GIF',
+      retry: '重试',
+      failedToLoad: '加载失败',
     },
     detail: {
-      loading: 'Loading...',
-      notFound: 'GIF not found',
-      views: 'views',
-      downloads: 'downloads',
-      poweredByGiphy: 'Powered by Giphy',
+      loading: '加载中...',
+      notFound: '未找到 GIF',
+      views: '次观看',
+      downloads: '次下载',
+      poweredByGiphy: '由 Giphy 提供',
       pleaseLogin: '请先登录',
       unliked: '已取消收藏',
       operationFailed: '操作失败',
@@ -261,6 +267,12 @@ export const messages: Record<'zh-CN' | 'en-US', LocaleMessages> = {
       downloadFailed: '下载失败，请重试',
       linkCopied: '链接已复制',
       copyFailed: '复制失败，请重试',
+      anonymous: '匿名用户',
+      untitled: '无标题 GIF',
+    },
+    common: {
+      gifs: '个 GIF',
+      mb: 'MB',
     },
   },
   'en-US': {
@@ -393,6 +405,12 @@ export const messages: Record<'zh-CN' | 'en-US', LocaleMessages> = {
       downloadFailed: 'Download failed, please retry',
       linkCopied: 'Link copied',
       copyFailed: 'Copy failed, please retry',
+      anonymous: 'Anonymous',
+      untitled: 'Untitled GIF',
+    },
+    common: {
+      gifs: ' GIFs',
+      mb: 'MB',
     },
   },
 }

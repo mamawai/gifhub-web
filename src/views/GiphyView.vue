@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import NavBar from '@/components/NavBar.vue'
 import GifCard from '@/components/GifCard.vue'
 import { getTrending, search } from '@/api/giphy'
 import type { GiphyGifVO } from '@/api/giphy-types'
 import type { GifDTO } from '@/api/types'
 import { Search } from 'lucide-vue-next'
+import { useLocaleStore } from '@/stores/locale'
+import { messages } from '@/locales/messages'
+
+const localeStore = useLocaleStore()
+const t = computed(() => messages[localeStore.locale].giphy)
 
 const gifs = ref<GifDTO[]>([])
 const loading = ref(true)
@@ -75,7 +80,7 @@ const fetchGifs = async (isLoadMore = false) => {
     }
   } catch (err) {
     console.error(err)
-    error.value = 'Failed to load GIFs'
+    error.value = t.value.failedToLoad
   } finally {
     loading.value = false
     loadingMore.value = false
@@ -123,7 +128,7 @@ onUnmounted(() => {
     <main class="main-content">
       <div class="giphy-header container">
         <h1 class="page-title">
-          {{ mode === 'trending' ? 'Trending on GIPHY' : `Results for "${activeQuery}"` }}
+          {{ mode === 'trending' ? t.trending : `${t.resultsFor} "${activeQuery}"` }}
         </h1>
 
         <div class="search-container">
@@ -132,7 +137,7 @@ onUnmounted(() => {
             <input
               v-model="searchQuery"
               @keyup.enter="handleSearch"
-              placeholder="Search GIPHY..."
+              :placeholder="t.searchPlaceholder"
               type="text"
             />
           </div>
@@ -146,10 +151,10 @@ onUnmounted(() => {
 
         <div v-else-if="error" class="error-state">
           {{ error }}
-          <button @click="fetchGifs(false)">Retry</button>
+          <button @click="fetchGifs(false)">{{ t.retry }}</button>
         </div>
 
-        <div v-else-if="gifs.length === 0" class="empty-state">No GIFs found.</div>
+        <div v-else-if="gifs.length === 0" class="empty-state">{{ t.noResults }}</div>
 
         <div v-else class="masonry-grid">
           <GifCard v-for="gif in gifs" :key="gif.id" :gif="gif" />

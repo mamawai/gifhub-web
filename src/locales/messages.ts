@@ -112,6 +112,13 @@ export type LocaleMessages = {
     noResults: string
     retry: string
     failedToLoad: string
+    by: string
+    source: string
+    poweredByGiphy: string
+    iLikeIt: string
+    maybeLater: string
+    thankYouLike: string
+    likeFailed: string
   }
   detail: {
     loading: string
@@ -248,6 +255,13 @@ export const messages: Record<'zh-CN' | 'en-US', LocaleMessages> = {
       noResults: '未找到 GIF',
       retry: '重试',
       failedToLoad: '加载失败',
+      by: '作者',
+      source: '来源',
+      poweredByGiphy: '由 Giphy 提供支持',
+      iLikeIt: '我喜欢！',
+      maybeLater: '下次再说',
+      thankYouLike: '感谢您的喜欢！❤️',
+      likeFailed: '操作失败',
     },
     detail: {
       loading: '加载中...',
@@ -382,6 +396,13 @@ export const messages: Record<'zh-CN' | 'en-US', LocaleMessages> = {
       noResults: 'No GIFs found.',
       retry: 'Retry',
       failedToLoad: 'Failed to load GIFs',
+      by: 'By',
+      source: 'Source',
+      poweredByGiphy: 'Powered By Giphy',
+      iLikeIt: 'I Like It!',
+      maybeLater: 'Maybe Later',
+      thankYouLike: 'Thank you for your like! ❤️',
+      likeFailed: 'Failed to like',
     },
     detail: {
       loading: 'Loading...',

@@ -2,14 +2,18 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import NavBar from '@/components/NavBar.vue'
 import GifCard from '@/components/GifCard.vue'
+import GiphyModal from '@/components/GiphyModal.vue'
 import { getTrending, search } from '@/api/giphy'
+import { likeGiphy } from '@/api/gif'
 import type { GiphyGifVO } from '@/api/giphy-types'
 import type { GifDTO } from '@/api/types'
 import { Search } from 'lucide-vue-next'
 import { useLocaleStore } from '@/stores/locale'
+import { useAppStore } from '@/stores/app'
 import { messages } from '@/locales/messages'
 
 const localeStore = useLocaleStore()
+const appStore = useAppStore()
 const t = computed(() => messages[localeStore.locale].giphy)
 
 const gifs = ref<GifDTO[]>([])
@@ -23,6 +27,17 @@ const hasMore = ref(true)
 const mode = ref<'trending' | 'search'>('trending')
 const searchQuery = ref('')
 const activeQuery = ref('') // The query currently being displayed
+
+const showModal = ref(false)
+const selectedGif = ref<{
+  id: string
+  username?: string
+  source?: string
+  title?: string
+  url?: string
+  width?: number
+  height?: number
+} | null>(null)
 
 // Mapper function
 const mapGiphyToGifDTO = (giphyGif: GiphyGifVO): GifDTO => {
@@ -111,6 +126,37 @@ const handleScroll = () => {
   }
 }
 
+const handleGifClick = (gif: GifDTO) => {
+  selectedGif.value = {
+    id: String(gif.giphyId || gif.id),
+    username: gif.giphyUsername,
+    source: gif.source,
+    title: gif.title,
+    url: gif.fileUrl || gif.url,
+    width: gif.width,
+    height: gif.height,
+  }
+  showModal.value = true
+}
+
+const handleLike = async () => {
+  if (!selectedGif.value) return
+
+  try {
+    await likeGiphy({
+      giphyId: selectedGif.value.id,
+      username: selectedGif.value.username,
+      source: selectedGif.value.source,
+      title: selectedGif.value.title,
+    })
+    showModal.value = false
+    appStore.showToast(t.value.thankYouLike, 'success')
+  } catch (err) {
+    console.error('Failed to like gif', err)
+    appStore.showToast(t.value.likeFailed, 'error')
+  }
+}
+
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
   fetchGifs()
@@ -157,7 +203,7 @@ onUnmounted(() => {
         <div v-else-if="gifs.length === 0" class="empty-state">{{ t.noResults }}</div>
 
         <div v-else class="masonry-grid">
-          <GifCard v-for="gif in gifs" :key="gif.id" :gif="gif" />
+          <GifCard v-for="gif in gifs" :key="gif.id" :gif="gif" @click="handleGifClick" />
         </div>
 
         <div v-if="loadingMore" class="loading-more">
@@ -165,6 +211,8 @@ onUnmounted(() => {
         </div>
       </section>
     </main>
+
+    <GiphyModal :is-open="showModal" :gif="selectedGif" @close="showModal = false" @like="handleLike" />
   </div>
 </template>
 

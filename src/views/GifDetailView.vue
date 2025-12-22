@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getGifDetail, updateDownloadCount, isLikeThis, likeOrDislike } from '@/api/gif'
+import { getGifDetail, updateDownloadCount, updateViewCount, isLikeThis, likeOrDislike } from '@/api/gif'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 import { useLocaleStore } from '@/stores/locale'
@@ -69,6 +69,9 @@ const fetchDetail = async () => {
       // If res is wrapped in data, unwrap it.
       const rawGif = (res as { data?: GifDTO }).data || res
       gif.value = processGifData(rawGif)
+
+      // 更新浏览次数
+      updateViewCount(id)
 
       // 检查用户是否已喜欢此GIF
       if (userStore.isLoggedIn) {

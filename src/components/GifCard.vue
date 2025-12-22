@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Heart } from 'lucide-vue-next'
 import type { GifDTO } from '@/api/types'
 
 const props = defineProps<{
@@ -13,7 +12,6 @@ const emit = defineEmits<{
 
 const cardRef = ref<HTMLElement | null>(null)
 const isHovered = ref(false)
-const isLiked = ref(false)
 
 // Tilt State
 const rotateX = ref(0)
@@ -95,18 +93,8 @@ const handleClick = () => {
 
     <div class="overlay" :class="{ visible: isHovered }">
       <div class="overlay-content">
-        <!-- 底部栏：标题和爱心按钮在同一行 -->
-        <div class="bottom-bar">
-          <div class="info" v-if="gif.title">
-            <p class="title">{{ gif.title }}</p>
-          </div>
-          <button
-            class="action-btn like-btn"
-            @click.stop="isLiked = !isLiked"
-            :class="{ active: isLiked }"
-          >
-            <Heart :size="20" :fill="isLiked ? 'currentColor' : 'none'" />
-          </button>
+        <div class="info" v-if="gif.title">
+          <p class="title">{{ gif.title }}</p>
         </div>
       </div>
     </div>

@@ -40,7 +40,6 @@ const userStore = useUserStore()
 const appStore = useAppStore()
 const localeStore = useLocaleStore()
 const t = computed(() => messages[localeStore.locale].profile)
-const tCommon = computed(() => messages[localeStore.locale].common)
 const activeTab = ref<'uploads' | 'likes'>('uploads')
 const uploadedGifs = ref<GifDTO[]>([])
 const likedGifs = ref<UserLikeVO[]>([])
@@ -495,7 +494,7 @@ onMounted(() => {
                     <Folder :size="32" class="category-icon" />
                   </div>
                   <h3 class="category-name">{{ cat.categoryName }}</h3>
-                  <p class="category-count">{{ cat.count || 0 }}{{ tCommon }}</p>
+                  <p class="category-count">{{ cat.count || 0 }}</p>
                 </div>
               </div>
             </div>

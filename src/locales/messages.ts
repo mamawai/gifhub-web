@@ -130,10 +130,6 @@ export type LocaleMessages = {
     anonymous: string
     untitled: string
   }
-  common: {
-    gifs: string
-    mb: string
-  }
 }
 
 export const messages: Record<'zh-CN' | 'en-US', LocaleMessages> = {
@@ -269,11 +265,7 @@ export const messages: Record<'zh-CN' | 'en-US', LocaleMessages> = {
       copyFailed: '复制失败，请重试',
       anonymous: '匿名用户',
       untitled: '无标题 GIF',
-    },
-    common: {
-      gifs: '个 GIF',
-      mb: 'MB',
-    },
+    }
   },
   'en-US': {
     home: {
@@ -407,10 +399,6 @@ export const messages: Record<'zh-CN' | 'en-US', LocaleMessages> = {
       copyFailed: 'Copy failed, please retry',
       anonymous: 'Anonymous',
       untitled: 'Untitled GIF',
-    },
-    common: {
-      gifs: ' GIFs',
-      mb: 'MB',
-    },
+    }
   },
 }

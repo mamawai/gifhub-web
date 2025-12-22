@@ -234,11 +234,14 @@ watch(sortType, () => {
 })
 
 // 监听语言变化，更新滑块位置
-watch(() => localeStore.locale, () => {
-  nextTick(() => {
-    updateGlider()
-  })
-})
+watch(
+  () => localeStore.locale,
+  () => {
+    nextTick(() => {
+      updateGlider()
+    })
+  },
+)
 
 // 合并所有 onMounted 逻辑到一个钩子中
 onMounted(() => {

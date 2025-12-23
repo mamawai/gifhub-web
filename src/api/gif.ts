@@ -16,26 +16,32 @@ import type {
 /**
  * 第一次获取随机GIF列表（返回完整响应以获取 message）
  */
-export function getRandomGifListFirst() {
+export function getRandomGifListFirst(pageSize: number = 10) {
   return axios
     .get<{
       status: number
       message: string
       data: GifDTO[]
-    }>(`${config.gifUrl}/gif/randomGifs`, { headers: { satoken: getToken() || '' } })
+    }>(`${config.gifUrl}/gif/randomGifs`, {
+      headers: { satoken: getToken() || '' },
+      params: { pageSize }
+    })
     .then((res) => res.data)
 }
 
 /**
  * 获取随机GIF列表（返回完整响应以获取 message）
  */
-export function getRandomGifList(id: number | string) {
+export function getRandomGifList(id: number | string, pageSize: number = 10) {
   return axios
     .get<{
       status: number
       message: string
       data: GifDTO[]
-    }>(`${config.gifUrl}/gif/randomGifs/${id}`, { headers: { satoken: getToken() || '' } })
+    }>(`${config.gifUrl}/gif/randomGifs/${id}`, {
+      headers: { satoken: getToken() || '' },
+      params: { pageSize }
+    })
     .then((res) => res.data)
 }
 

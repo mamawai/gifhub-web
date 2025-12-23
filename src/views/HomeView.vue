@@ -83,10 +83,10 @@ const fetchGifs = async (isLoadMore = false) => {
         case 'random':
           // 随机模式
           if (!isLoadMore) {
-            res = await getRandomGifListFirst()
+            res = await getRandomGifListFirst(20)
           } else {
             const lastId = gifs.value[gifs.value.length - 1]?.id
-            if (lastId) res = await getRandomGifList(lastId)
+            if (lastId) res = await getRandomGifList(lastId, 20)
           }
           break
 

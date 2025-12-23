@@ -1,7 +1,7 @@
 import request from '@/utils/request'
 import axios from 'axios'
 import config from '@/config'
-import { getToken } from '@/utils/auth'
+import { getToken, removeToken } from '@/utils/auth'
 import type {
   UploadGifDTO,
   BatchUploadGifDTO,
@@ -26,7 +26,17 @@ export function getRandomGifListFirst(pageSize: number = 10) {
       headers: { satoken: getToken() || '' },
       params: { pageSize }
     })
-    .then((res) => res.data)
+    .then((res) => {
+      const data = res.data
+      // Handle 401 unauthorized
+      if (data.status === 401) {
+        console.warn('Session expired')
+        removeToken()
+        window.location.href = '/login'
+        return Promise.reject(new Error('Session expired'))
+      }
+      return data
+    })
 }
 
 /**
@@ -42,7 +52,17 @@ export function getRandomGifList(id: number | string, pageSize: number = 10) {
       headers: { satoken: getToken() || '' },
       params: { pageSize }
     })
-    .then((res) => res.data)
+    .then((res) => {
+      const data = res.data
+      // Handle 401 unauthorized
+      if (data.status === 401) {
+        console.warn('Session expired')
+        removeToken()
+        window.location.href = '/login'
+        return Promise.reject(new Error('Session expired'))
+      }
+      return data
+    })
 }
 
 /**

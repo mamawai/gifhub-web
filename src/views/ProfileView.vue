@@ -28,10 +28,13 @@ import {
 import rsaEncrypt from '@/utils/encrypt'
 
 const handleBack = () => {
-  if (window.history.length > 1) {
+  // window.history.state.back 是 Vue Router 4 在浏览器 history API 上注入的标记
+  // 如果它存在，说明是在 App 内部发生过跳转
+  if (window.history.state && window.history.state.back) {
     router.back()
   } else {
-    router.push('/')
+    // 如果不存在，说明用户是直接打开的这个链接（落地页），直接回首页
+    router.replace('/')
   }
 }
 

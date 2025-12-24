@@ -1,12 +1,24 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Upload, User, Menu, ChevronDown, Heart, Telescope, Mail, Languages } from 'lucide-vue-next'
+import {
+  Upload,
+  User,
+  Menu,
+  ChevronDown,
+  Heart,
+  Telescope,
+  Mail,
+  Languages,
+  Repeat,
+} from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { useNotificationStore } from '@/stores/notification'
 import { useLocaleStore } from '@/stores/locale'
+import { useSettingsStore, type LoopCount } from '@/stores/settings'
 import { messages } from '@/locales/messages'
 import AnimatedThemeToggler from '@/components/AnimatedThemeToggler.vue'
+import VideoSettingsPopup from '@/components/VideoSettingsPopup.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -19,7 +31,22 @@ const isDark = ref(false)
 const showNavMenu = ref(false)
 const showActionsMenu = ref(false)
 const showNotifications = ref(false)
+const showVideoSettings = ref(false)
 const notificationRef = ref<HTMLElement | null>(null)
+const videoSettingsRef = ref<HTMLElement | null>(null)
+// 移动端专用子菜单展开状态
+const mobileExpandedSection = ref<'none' | 'notifications' | 'settings'>('none')
+const settingsStore = useSettingsStore()
+
+const loopOptions: LoopCount[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 'infinite']
+const getLoopDisplayValue = (count: LoopCount) => (count === 'infinite' ? '∞' : count.toString())
+const handleMobileLoopSelect = (count: LoopCount) => {
+  settingsStore.setLoopCount(count)
+  mobileExpandedSection.value = 'none'
+}
+const toggleMobileSection = (section: 'notifications' | 'settings') => {
+  mobileExpandedSection.value = mobileExpandedSection.value === section ? 'none' : section
+}
 
 const displayCount = computed(() => {
   if (notificationStore.unreadCount > 99) return '99+'
@@ -76,6 +103,9 @@ const handleScroll = () => {
 const handleClickOutside = (event: MouseEvent) => {
   if (notificationRef.value && !notificationRef.value.contains(event.target as Node)) {
     showNotifications.value = false
+  }
+  if (videoSettingsRef.value && !videoSettingsRef.value.contains(event.target as Node)) {
+    showVideoSettings.value = false
   }
 }
 
@@ -174,6 +204,18 @@ const navigateTo = (path: string) => {
 
         <AnimatedThemeToggler :is-dark="isDark" @toggle="toggleTheme" />
 
+        <!-- 视频设置按钮 -->
+        <div ref="videoSettingsRef" class="video-settings-wrapper">
+          <button
+            class="btn-icon"
+            @click="showVideoSettings = !showVideoSettings"
+            title="Video Settings"
+          >
+            <Repeat :size="20" />
+          </button>
+          <VideoSettingsPopup :show="showVideoSettings" @close="showVideoSettings = false" />
+        </div>
+
         <!-- 通知按钮 -->
         <div ref="notificationRef" class="notification-wrapper">
           <button class="btn-icon notification-btn" @click="toggleNotifications">
@@ -253,6 +295,66 @@ const navigateTo = (path: string) => {
           <button @click="toggleTheme" class="dropdown-item">
             {{ isDark ? t.lightMode : t.darkMode }}
           </button>
+          <!-- 移动端站内信入口 -->
+          <button
+            @click="toggleMobileSection('notifications')"
+            class="dropdown-item notification-mobile-item"
+          >
+            <Mail :size="16" class="dropdown-icon" />
+            <span>{{ t.notifications }}</span>
+            <span v-if="notificationStore.hasUnread" class="mobile-notification-badge">{{
+              displayCount
+            }}</span>
+          </button>
+          <!-- 移动端站内信展开面板 -->
+          <div v-if="mobileExpandedSection === 'notifications'" class="mobile-expanded-panel">
+            <div v-if="notificationStore.notifications.length === 0" class="mobile-empty-state">
+              <Mail :size="32" class="empty-icon" />
+              <p>{{ t.noNotifications }}</p>
+            </div>
+            <div v-else class="mobile-notification-list">
+              <div
+                v-for="notification in notificationStore.notifications.slice(0, 5)"
+                :key="notification.id"
+                :class="['mobile-notification-item', { unread: !notification.isRead }]"
+                @click="markAsRead(notification.id)"
+              >
+                <div class="notification-text">
+                  <span class="notification-title">{{
+                    getActionText(notification.actionType, notification.senderNickname)
+                  }}</span>
+                  <span class="notification-time">{{ formatTime(notification.createTime) }}</span>
+                </div>
+                <div v-if="!notification.isRead" class="unread-dot"></div>
+              </div>
+              <button
+                v-if="notificationStore.hasUnread"
+                class="mark-all-btn"
+                @click.stop="markAllAsRead"
+              >
+                {{ t.markAllRead }}
+              </button>
+            </div>
+          </div>
+          <!-- 移动端视频设置入口 -->
+          <button @click="toggleMobileSection('settings')" class="dropdown-item">
+            <Repeat :size="16" class="dropdown-icon" />
+            <span>播放设置</span>
+          </button>
+          <!-- 移动端视频设置展开面板 -->
+          <div v-if="mobileExpandedSection === 'settings'" class="mobile-expanded-panel">
+            <div class="mobile-loop-label">循环次数</div>
+            <div class="mobile-loop-grid">
+              <button
+                v-for="option in loopOptions"
+                :key="option"
+                :class="['mobile-loop-btn', { active: settingsStore.loopCount === option }]"
+                @click="handleMobileLoopSelect(option)"
+              >
+                {{ getLoopDisplayValue(option) }}
+              </button>
+            </div>
+          </div>
           <button @click="handleUploadClick" class="dropdown-item">
             <Upload :size="16" class="dropdown-icon" />
             <span>{{ t.upload }}</span>
@@ -840,5 +942,170 @@ const navigateTo = (path: string) => {
   .notification-list {
     max-height: 300px;
   }
+}
+
+/* 视频设置按钮包装器 */
+.video-settings-wrapper {
+  position: relative;
+}
+
+/* 移动端站内信样式 */
+.notification-mobile-item {
+  position: relative;
+}
+
+.mobile-notification-badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: #ef4444;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 移动端展开面板 */
+.mobile-expanded-panel {
+  padding: 0.75rem 1rem;
+  background: var(--color-surface-hover);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.mobile-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+  color: var(--color-text-muted);
+}
+
+.mobile-empty-state .empty-icon {
+  opacity: 0.3;
+  margin-bottom: 0.5rem;
+}
+
+.mobile-notification-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mobile-notification-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--color-surface);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.mobile-notification-item:hover {
+  background: var(--color-background);
+}
+
+.mobile-notification-item.unread {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.notification-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.notification-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-notification-item .notification-time {
+  font-size: 0.75rem;
+  color: var(--color-text-dim);
+}
+
+.mobile-notification-item .unread-dot {
+  width: 8px;
+  height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mark-all-btn {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-primary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mark-all-btn:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+/* 移动端循环设置 */
+.mobile-loop-label {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.mobile-loop-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+}
+
+.mobile-loop-btn {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  color: var(--color-text-main);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mobile-loop-btn:hover {
+  background: linear-gradient(135deg, rgba(153, 51, 255, 0.1), rgba(255, 102, 102, 0.1));
+  border-color: rgba(153, 51, 255, 0.3);
+}
+
+.mobile-loop-btn.active {
+  background: linear-gradient(135deg, rgba(153, 51, 255, 0.2), rgba(255, 102, 102, 0.2));
+  border-color: rgba(153, 51, 255, 0.5);
+  color: #9933ff;
+}
+
+:global(.dark) .mobile-loop-btn {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+:global(.dark) .mobile-loop-btn.active {
+  color: #cc88ff;
 }
 </style>

@@ -137,6 +137,11 @@ export type LocaleMessages = {
     anonymous: string
     untitled: string
   }
+  settings: {
+    videoPlayback: string
+    loopCount: string
+    infinite: string
+  }
 }
 
 export const messages: Record<'zh-CN' | 'en-US', LocaleMessages> = {
@@ -279,7 +284,12 @@ export const messages: Record<'zh-CN' | 'en-US', LocaleMessages> = {
       copyFailed: '复制失败，请重试',
       anonymous: '匿名用户',
       untitled: '无标题 GIF',
-    }
+    },
+    settings: {
+      videoPlayback: '动图播放设置',
+      loopCount: '循环次数',
+      infinite: '无限',
+    },
   },
   'en-US': {
     home: {
@@ -420,6 +430,11 @@ export const messages: Record<'zh-CN' | 'en-US', LocaleMessages> = {
       copyFailed: 'Copy failed, please retry',
       anonymous: 'Anonymous',
       untitled: 'Untitled GIF',
-    }
+    },
+    settings: {
+      videoPlayback: 'Video Playback',
+      loopCount: 'Loop Count',
+      infinite: 'Infinite',
+    },
   },
 }

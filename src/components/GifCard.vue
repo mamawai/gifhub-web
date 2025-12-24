@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { GifDTO } from '@/api/types'
+import { useSettingsStore } from '@/stores/settings'
 
 const props = defineProps<{
   gif: GifDTO
@@ -10,8 +11,14 @@ const emit = defineEmits<{
   (e: 'click', gif: GifDTO): void
 }>()
 
+const settingsStore = useSettingsStore()
+
 const cardRef = ref<HTMLElement | null>(null)
+const videoRef = ref<HTMLVideoElement | null>(null)
 const isHovered = ref(false)
+const isInView = ref(false)
+const loopCounter = ref(0)
+const hasCompletedLoops = ref(false) // 标记是否已完成配置的循环次数
 
 // Tilt State
 const rotateX = ref(0)
@@ -37,6 +44,63 @@ const cardStyle = computed(() => {
   }
 })
 
+// Intersection Observer 实现懒加载
+let observer: IntersectionObserver | null = null
+
+const setupObserver = () => {
+  if (!cardRef.value) return
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        isInView.value = entry.isIntersecting
+
+        if (entry.isIntersecting) {
+          // 进入视口
+          if (!hasCompletedLoops.value && videoRef.value) {
+            videoRef.value.play().catch(() => {
+              // 忽略自动播放失败（浏览器策略）
+            })
+          }
+        } else {
+          // 离开视口：暂停并重置
+          if (videoRef.value) {
+            videoRef.value.pause()
+            videoRef.value.currentTime = 0
+          }
+          // 重置循环计数器，下次进入视口时可以重新播放
+          loopCounter.value = 0
+          hasCompletedLoops.value = false
+        }
+      })
+    },
+    {
+      threshold: 0.3, // 30% 可见时触发
+      rootMargin: '50px', // 提前50px开始检测
+    },
+  )
+
+  observer.observe(cardRef.value)
+}
+
+// 处理视频播放结束
+const handleVideoEnded = () => {
+  const maxLoops = settingsStore.loopCount
+
+  if (maxLoops === 'infinite') {
+    // 无限循环
+    videoRef.value?.play()
+  } else if (loopCounter.value < maxLoops - 1) {
+    // 还没达到配置的次数
+    loopCounter.value++
+    videoRef.value?.play()
+  } else {
+    // 已完成配置的循环次数，标记完成
+    hasCompletedLoops.value = true
+    loopCounter.value = 0
+  }
+}
+
 const handleMouseMove = (e: MouseEvent) => {
   if (!cardRef.value) return
 
@@ -55,6 +119,18 @@ const handleMouseMove = (e: MouseEvent) => {
   scale.value = 1.02
 }
 
+const handleMouseEnter = () => {
+  isHovered.value = true
+
+  // 如果已完成循环次数，悬停时重新播放
+  if (hasCompletedLoops.value && isInView.value && videoRef.value) {
+    loopCounter.value = 0
+    hasCompletedLoops.value = false
+    videoRef.value.currentTime = 0
+    videoRef.value.play().catch(() => {})
+  }
+}
+
 const handleMouseLeave = () => {
   isHovered.value = false
   rotateX.value = 0
@@ -65,29 +141,55 @@ const handleMouseLeave = () => {
 const handleClick = () => {
   emit('click', props.gif)
 }
+
+// 监听设置变化
+watch(
+  () => settingsStore.loopCount,
+  () => {
+    // 设置变化时重置状态
+    loopCounter.value = 0
+    hasCompletedLoops.value = false
+    if (isInView.value && videoRef.value) {
+      videoRef.value.currentTime = 0
+      videoRef.value.play().catch(() => {})
+    }
+  },
+)
+
+onMounted(() => {
+  setupObserver()
+})
+
+onUnmounted(() => {
+  if (observer) {
+    observer.disconnect()
+    observer = null
+  }
+})
 </script>
 
 <template>
   <div
     ref="cardRef"
     class="gif-card"
-    @mouseenter="isHovered = true"
+    @mouseenter="handleMouseEnter"
     @mousemove="handleMouseMove"
     @mouseleave="handleMouseLeave"
     @click="handleClick"
     :style="cardStyle"
   >
-    <!-- Video Element: Ensure controls are hidden -->
+    <!-- Video Element: 使用 preload="metadata" 和智能播放控制 -->
     <video
       v-if="isVideo"
+      ref="videoRef"
       :src="displayUrl"
-      autoplay
-      loop
       muted
       playsinline
       disablePictureInPicture
+      preload="metadata"
       class="gif-content no-controls"
       oncontextmenu="return false;"
+      @ended="handleVideoEnded"
     ></video>
     <img v-else :src="displayUrl" loading="lazy" :alt="gif.title || 'GIF'" class="gif-content" />
 

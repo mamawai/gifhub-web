@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getGifDetail,
@@ -11,7 +11,6 @@ import {
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 import { useLocaleStore } from '@/stores/locale'
-import { useSettingsStore } from '@/stores/settings'
 import { messages } from '@/locales/messages'
 import CommentSection from '@/components/CommentSection.vue'
 import AddToCollectionModal from '@/components/AddToCollectionModal.vue'
@@ -24,7 +23,6 @@ const router = useRouter()
 const userStore = useUserStore()
 const appStore = useAppStore()
 const localeStore = useLocaleStore()
-const settingsStore = useSettingsStore()
 const t = computed(() => messages[localeStore.locale].detail)
 
 const gif = ref<GifDTO | null>(null)
@@ -33,9 +31,6 @@ const showCollectionModal = ref(false)
 const isDownloading = ref(false)
 const downloadProgress = ref(0)
 const isLiked = ref(false)
-const detailVideoRef = ref<HTMLVideoElement | null>(null)
-const detailLoopCounter = ref(0)
-const detailHasCompletedLoops = ref(false)
 
 const isVideo = computed(() => {
   if (!gif.value?.url) return false
@@ -241,34 +236,6 @@ const handleShare = async () => {
   }
 }
 
-// 详情页视频循环控制
-const handleDetailVideoEnded = () => {
-  const maxLoops = settingsStore.loopCount
-
-  if (maxLoops === 'infinite') {
-    detailVideoRef.value?.play()
-  } else if (detailLoopCounter.value < maxLoops - 1) {
-    detailLoopCounter.value++
-    detailVideoRef.value?.play()
-  } else {
-    detailHasCompletedLoops.value = true
-    detailLoopCounter.value = 0
-  }
-}
-
-// 监听设置变化
-watch(
-  () => settingsStore.loopCount,
-  () => {
-    detailLoopCounter.value = 0
-    detailHasCompletedLoops.value = false
-    if (detailVideoRef.value) {
-      detailVideoRef.value.currentTime = 0
-      detailVideoRef.value.play().catch(() => {})
-    }
-  },
-)
-
 onMounted(() => {
   fetchDetail()
 })
@@ -302,12 +269,12 @@ onMounted(() => {
               ref="detailVideoRef"
               :src="gif.url"
               autoplay
+              loop
               muted
               playsinline
               disablePictureInPicture
               class="main-gif no-controls"
               oncontextmenu="return false;"
-              @ended="handleDetailVideoEnded"
             ></video>
             <img v-else :src="gif.url" :alt="gif.title" class="main-gif" />
           </div>

@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Eye, EyeOff, Mail, Lock, MessageSquare, ArrowRight, Languages } from 'lucide-vue-next'
-import { getCode, emailRegister, getPublicKey } from '@/api/user'
+import { getCode, emailRegister, getPublicKey, sendResetPasswordCode, resetPassword } from '@/api/user'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 import { useLocaleStore } from '@/stores/locale'
@@ -31,7 +31,10 @@ const codeText = computed(() => {
   if (countdown.value > 0) {
     return `${countdown.value}s`
   }
-  return countdown.value === 0 && codeLoading.value ? t.value.sendCode : t.value.resend
+  if (codeLoading.value) {
+    return t.value.sendCode
+  }
+  return t.value.sendCode
 })
 
 // Register Modal
@@ -39,6 +42,24 @@ const showRegisterModal = ref(false)
 const registerPassword = ref('')
 const registerConfirmPassword = ref('')
 const registerCode = ref('')
+
+// Reset Password Modal
+const showResetPasswordModal = ref(false)
+const resetEmail = ref('')
+const resetCode = ref('')
+const resetNewPassword = ref('')
+const resetConfirmPassword = ref('')
+const resetCodeLoading = ref(false)
+const resetCountdown = ref(0)
+const resetCodeText = computed(() => {
+  if (resetCountdown.value > 0) {
+    return `${resetCountdown.value}s`
+  }
+  if (resetCodeLoading.value) {
+    return t.value.sendCode
+  }
+  return t.value.sendCode
+})
 
 // Validation
 const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -162,6 +183,96 @@ const handleRegister = async () => {
     alert(error.message || t.value.registrationFailed)
   }
 }
+
+// Reset Password Functions
+const openResetPasswordModal = () => {
+  resetEmail.value = email.value
+  showResetPasswordModal.value = true
+}
+
+const handleGetResetCode = async () => {
+  if (resetCountdown.value > 0 || resetCodeLoading.value) return
+  if (!validateEmail(resetEmail.value)) {
+    appStore.showToast(t.value.invalidEmail, 'warning')
+    return
+  }
+
+  resetCodeLoading.value = true
+  try {
+    const res = await sendResetPasswordCode(resetEmail.value)
+    if (res === true) {
+      startResetCountdown()
+      appStore.showToast(t.value.resetCodeSent, 'success')
+    } else {
+      appStore.showToast(t.value.sendCodeFailed, 'error')
+    }
+  } catch (err: unknown) {
+    const error = err as Error
+    appStore.showToast(error.message || t.value.errorSendingCode, 'error')
+  } finally {
+    resetCodeLoading.value = false
+  }
+}
+
+const startResetCountdown = () => {
+  resetCountdown.value = 60
+  const timer = setInterval(() => {
+    resetCountdown.value--
+    if (resetCountdown.value <= 0) {
+      clearInterval(timer)
+    }
+  }, 1000)
+}
+
+const handleResetPassword = async () => {
+  if (!resetCode.value) {
+    appStore.showToast(t.value.pleaseEnterCode, 'warning')
+    return
+  }
+  if (!resetNewPassword.value || resetNewPassword.value.length < 6) {
+    appStore.showToast(t.value.passwordMinLength, 'warning')
+    return
+  }
+  if (resetNewPassword.value !== resetConfirmPassword.value) {
+    appStore.showToast(t.value.passwordsNotMatch, 'warning')
+    return
+  }
+
+  try {
+    const pubKeyRes = await getPublicKey()
+    if (pubKeyRes) {
+      rsaEncrypt.setPublicKey(pubKeyRes)
+      const encrypted = rsaEncrypt.encryptPassword(resetNewPassword.value)
+
+      if (encrypted) {
+        const result = await resetPassword({
+          email: resetEmail.value,
+          verificationCode: resetCode.value,
+          newPassword: encrypted,
+        })
+
+        if (result) {
+          appStore.showToast(t.value.resetPasswordSuccess, 'success')
+          showResetPasswordModal.value = false
+          // Switch to password tab and set the email
+          activeTab.value = 'password'
+          email.value = resetEmail.value
+          // Clear reset form
+          resetEmail.value = ''
+          resetCode.value = ''
+          resetNewPassword.value = ''
+          resetConfirmPassword.value = ''
+          resetCountdown.value = 0
+        } else {
+          appStore.showToast(t.value.resetPasswordFailed, 'error')
+        }
+      }
+    }
+  } catch (err: unknown) {
+    const error = err as Error
+    appStore.showToast(error.message || t.value.resetPasswordFailed, 'error')
+  }
+}
 </script>
 
 <template>
@@ -256,7 +367,7 @@ const handleRegister = async () => {
                   </button>
                 </div>
                 <div class="input-footer">
-                  <div class="forgot-link">{{ t.forgotPassword }}</div>
+                  <div class="forgot-link" @click="openResetPasswordModal">{{ t.forgotPassword }}</div>
                 </div>
               </div>
 
@@ -314,6 +425,60 @@ const handleRegister = async () => {
         <div class="modal-actions">
           <button class="btn-text" @click="showRegisterModal = false">{{ t.cancel }}</button>
           <button class="btn-primary" @click="handleRegister">{{ t.createAccount }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div v-if="showResetPasswordModal" class="modal-overlay">
+      <div class="modal glass-effect">
+        <h3>{{ t.resetPasswordTitle }}</h3>
+        <p>{{ t.resetPasswordDesc }}</p>
+
+        <div class="input-group">
+          <label>{{ t.emailAddress }}</label>
+          <div class="input-wrapper">
+            <Mail class="field-icon" :size="20" />
+            <input v-model="resetEmail" type="email" :placeholder="t.emailPlaceholder" />
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label>{{ t.verificationCode }}</label>
+          <div class="input-wrapper">
+            <MessageSquare class="field-icon" :size="20" />
+            <input v-model="resetCode" type="text" :placeholder="t.verificationPlaceholder" />
+            <button
+              class="otp-btn"
+              :disabled="resetCountdown > 0 || resetCodeLoading"
+              @click="handleGetResetCode"
+            >
+              {{ resetCodeText }}
+            </button>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label>{{ t.newPassword }}</label>
+          <div class="input-wrapper">
+            <input v-model="resetNewPassword" type="password" :placeholder="t.newPassword" />
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label>{{ t.confirmPassword }}</label>
+          <div class="input-wrapper">
+            <input
+              v-model="resetConfirmPassword"
+              type="password"
+              :placeholder="t.confirmPassword"
+            />
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-text" @click="showResetPasswordModal = false">{{ t.cancel }}</button>
+          <button class="btn-primary" @click="handleResetPassword">{{ t.resetPassword }}</button>
         </div>
       </div>
     </div>

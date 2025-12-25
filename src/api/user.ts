@@ -138,3 +138,25 @@ export function weixinLogin(data: WeixinLoginDTO) {
     data,
   })
 }
+
+/**
+ * 发送重置密码验证码
+ */
+export function sendResetPasswordCode(email: string) {
+  return request<boolean>({
+    url: '/user/reset-password/code',
+    method: 'POST',
+    params: { email },
+  })
+}
+
+/**
+ * 重置密码
+ */
+export function resetPassword(data: { email: string; verificationCode: string; newPassword: string }) {
+  return request<boolean>({
+    url: '/user/reset-password',
+    method: 'POST',
+    data,
+  })
+}

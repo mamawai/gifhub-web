@@ -40,6 +40,13 @@ export type LocaleMessages = {
     passwordsNotMatch: string
     accountCreated: string
     registrationFailed: string
+    resetPasswordTitle: string
+    resetPasswordDesc: string
+    resetCodeSent: string
+    pleaseEnterCode: string
+    resetPasswordSuccess: string
+    resetPasswordFailed: string
+    resetPassword: string
   }
   navbar: {
     whatWeLike: string
@@ -187,6 +194,13 @@ export const messages: Record<'zh-CN' | 'en-US', LocaleMessages> = {
       passwordsNotMatch: '两次密码不匹配',
       accountCreated: '账户创建成功！正在登录...',
       registrationFailed: '注册失败',
+      resetPasswordTitle: '重置密码',
+      resetPasswordDesc: '请输入您的邮箱和验证码来重置密码',
+      resetCodeSent: '验证码已发送',
+      pleaseEnterCode: '请输入验证码',
+      resetPasswordSuccess: '密码重置成功！',
+      resetPasswordFailed: '密码重置失败',
+      resetPassword: '重置密码',
     },
     navbar: {
       whatWeLike: 'What We Like',
@@ -333,6 +347,13 @@ export const messages: Record<'zh-CN' | 'en-US', LocaleMessages> = {
       passwordsNotMatch: 'Passwords do not match',
       accountCreated: 'Account created successfully! Logging you in...',
       registrationFailed: 'Registration failed',
+      resetPasswordTitle: 'Reset Password',
+      resetPasswordDesc: 'Enter your email and verification code to reset your password',
+      resetCodeSent: 'Verification code sent',
+      pleaseEnterCode: 'Please enter the verification code',
+      resetPasswordSuccess: 'Password reset successfully!',
+      resetPasswordFailed: 'Failed to reset password',
+      resetPassword: 'Reset Password',
     },
     navbar: {
       whatWeLike: 'What We Like',

@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Eye, EyeOff, Mail, Lock, MessageSquare, ArrowRight, Languages } from 'lucide-vue-next'
-import { getCode, emailRegister, getPublicKey, sendResetPasswordCode, resetPassword } from '@/api/user'
+import { getCode, emailRegister, getPublicKey, sendResetPasswordCode, resetPassword, ipPreCheck } from '@/api/user'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 import { useLocaleStore } from '@/stores/locale'
 import { messages } from '@/locales/messages'
 import rsaEncrypt from '@/utils/encrypt'
+import { generateFingerprint } from '@/utils/fingerprint'
+import type { ProxyCheckResponse } from '@/api/types'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -61,13 +63,45 @@ const resetCodeText = computed(() => {
   return t.value.sendCode
 })
 
+// ProxyCheck检测
+const proxyCheckData = ref<ProxyCheckResponse | null>(null)
+const ipCheckLoading = ref(false)
+
+// 浏览器指纹
+const browserFingerprint = ref('')
+
 // Validation
 const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
+// 初始化ProxyCheck检测和指纹
+const initSecurityCheck = async () => {
+  ipCheckLoading.value = true
+  try {
+    const ipData = await ipPreCheck()
+    proxyCheckData.value = ipData
+  } catch (error) {
+    console.error('ProxyCheck检测失败:', error)
+  } finally {
+    ipCheckLoading.value = false
+  }
+
+  // 生成浏览器指纹
+  try {
+    browserFingerprint.value = await generateFingerprint()
+  } catch (error) {
+    console.error('指纹生成失败:', error)
+  }
+}
 
 // Actions
 const switchTab = (tab: 'password' | 'code') => {
   activeTab.value = tab
 }
+
+// 组件挂载时初始化
+onMounted(() => {
+  initSecurityCheck()
+})
 
 const handleGetCode = async () => {
   if (countdown.value > 0 || codeLoading.value) return
@@ -133,15 +167,16 @@ const handleLogin = async () => {
     appStore.showToast(t.value.welcomeBack, 'success')
     router.push('/')
   } catch (err: unknown) {
-    const error = err as { code?: number; message?: string }
+    const error = err as { response?: { status?: number; message?: string }; message?: string }
     console.error(error)
-    if (error.code === 1001 && activeTab.value === 'code') {
-      // Need registration
+
+    // 1001错误：用户不存在，需要注册（仅验证码模式）
+    if (error.response?.status === 1001 && activeTab.value === 'code') {
       registerCode.value = code.value
       showRegisterModal.value = true
       appStore.showToast(t.value.completeRegistration, 'info')
     } else {
-      appStore.showToast(error.message || t.value.loginFailed, 'error')
+      appStore.showToast(error.response?.message || error.message || t.value.loginFailed, 'error')
     }
   } finally {
     loading.value = false
@@ -149,38 +184,55 @@ const handleLogin = async () => {
 }
 
 const handleRegister = async () => {
+  // 验证密码
   if (!registerPassword.value || registerPassword.value.length < 6) {
-    alert(t.value.passwordMinLength)
+    appStore.showToast(t.value.passwordMinLength, 'warning')
     return
   }
   if (registerPassword.value !== registerConfirmPassword.value) {
-    alert(t.value.passwordsNotMatch)
+    appStore.showToast(t.value.passwordsNotMatch, 'warning')
     return
   }
 
   try {
+    // 获取公钥并加密密码
     const pubKeyRes = await getPublicKey()
-    if (pubKeyRes) {
-      rsaEncrypt.setPublicKey(pubKeyRes)
-      const encrypted = rsaEncrypt.encryptPassword(registerPassword.value)
+    if (!pubKeyRes) {
+      appStore.showToast('获取公钥失败', 'error')
+      return
+    }
 
-      if (encrypted) {
-        await emailRegister({
-          email: email.value,
-          password: encrypted,
-          verificationCode: registerCode.value,
-        })
+    rsaEncrypt.setPublicKey(pubKeyRes)
+    const encrypted = rsaEncrypt.encryptPassword(registerPassword.value)
 
-        alert(t.value.accountCreated)
-        showRegisterModal.value = false
-        activeTab.value = 'password'
-        password.value = registerPassword.value
-        handleLogin() // Try auto login
-      }
+    if (!encrypted) {
+      appStore.showToast('密码加密失败', 'error')
+      return
+    }
+
+    // 调用注册接口，返回 LoginResultVO
+    const result = await emailRegister({
+      email: email.value,
+      password: encrypted,
+      verificationCode: registerCode.value,
+      fingerprint: browserFingerprint.value
+    })
+
+    // 注册成功，使用返回的 token 设置登录状态
+    if (result && result.token) {
+      userStore.setToken(result.token)
+      await userStore.fetchUserInfo()
+      appStore.showToast(t.value.accountCreated, 'success')
+
+      // 关闭弹窗并跳转
+      showRegisterModal.value = false
+      router.push('/')
+    } else {
+      appStore.showToast('注册成功但未获取到令牌', 'error')
     }
   } catch (err: unknown) {
     const error = err as Error
-    alert(error.message || t.value.registrationFailed)
+    appStore.showToast(error.message || t.value.registrationFailed, 'error')
   }
 }
 
@@ -397,6 +449,29 @@ const handleResetPassword = async () => {
             <span v-else class="spinner-sm"></span>
             <ArrowRight v-if="!loading" :size="20" />
           </button>
+
+          <!-- ProxyCheck 风险显示 -->
+          <div v-if="proxyCheckData" class="risk-display">
+            <div class="risk-item">
+              <span class="risk-label">风险分数:</span>
+              <span
+                class="risk-value"
+                :class="{
+                  'safe': proxyCheckData.risk < 30,
+                  'warning': proxyCheckData.risk >= 30 && proxyCheckData.risk < 60,
+                  'danger': proxyCheckData.risk >= 60
+                }"
+              >
+                {{ proxyCheckData.risk }}/100
+              </span>
+            </div>
+            <div class="risk-item">
+              <span class="risk-label">代理状态:</span>
+              <span :class="proxyCheckData.proxy ? 'proxy-on' : 'proxy-off'">
+                {{ proxyCheckData.proxy ? '已开启' : '未开启' }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -993,6 +1068,67 @@ input:focus + .field-icon,
   opacity: 0.7;
   cursor: not-allowed;
   transform: none;
+}
+
+/* 风险显示 */
+.risk-display {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.risk-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.risk-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.risk-value {
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.risk-value.safe {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.risk-value.warning {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.risk-value.danger {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.proxy-on {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.proxy-off {
+  color: #10b981;
+  font-weight: 600;
 }
 
 .forgot-link {

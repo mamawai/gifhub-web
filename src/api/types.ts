@@ -140,6 +140,7 @@ export interface EmailRegisterDTO {
   email: string
   password: string
   verificationCode: string
+  fingerprint:string
 }
 
 /**
@@ -275,6 +276,21 @@ export interface NotificationVO {
   contentSnapshot: string
   isRead: boolean
   createTime: string
+}
+
+/**
+ * ProxyCheck 检测结果
+ */
+export interface ProxyCheckResponse {
+  proxy: boolean
+  vpn: boolean
+  compromised: boolean
+  scraper: boolean
+  tor: boolean
+  hosting: boolean
+  anonymous: boolean
+  risk: number
+  confidence: number
 }
 
 export * from './giphy-types'

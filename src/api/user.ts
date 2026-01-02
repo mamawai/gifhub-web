@@ -6,7 +6,7 @@ import type {
   UserInfoVO,
   EmailRegisterDTO,
   GetUserGifsParams,
-  WeixinLoginDTO,
+  ProxyCheckResponse,
 } from '@/api/types'
 
 /**
@@ -23,8 +23,8 @@ export function getPublicKey() {
  * 邮箱注册
  */
 export function emailRegister(data: EmailRegisterDTO) {
-  return request({
-    url: '/user/register/email',
+  return request<LoginResultVO>({
+    url: '/user/web/register',
     method: 'POST',
     data,
   })
@@ -129,17 +129,6 @@ export function isEmailVerified() {
 }
 
 /**
- * 微信登录
- */
-export function weixinLogin(data: WeixinLoginDTO) {
-  return request({
-    url: '/wechat/login',
-    method: 'POST',
-    data,
-  })
-}
-
-/**
  * 发送重置密码验证码
  */
 export function sendResetPasswordCode(email: string) {
@@ -158,5 +147,15 @@ export function resetPassword(data: { email: string; verificationCode: string; n
     url: '/user/reset-password',
     method: 'POST',
     data,
+  })
+}
+
+/**
+ * IP预检测（调用后端ProxyCheck）
+ */
+export function ipPreCheck() {
+  return request<ProxyCheckResponse>({
+    url: '/user/ipPreCheck',
+    method: 'POST',
   })
 }

@@ -111,6 +111,7 @@ const showRegisterModal = ref(false)
 const registerPassword = ref('')
 const registerConfirmPassword = ref('')
 const registerCode = ref('')
+const registerLoading = ref(false)
 
 // Reset Password Modal
 const showResetPasswordModal = ref(false)
@@ -269,6 +270,7 @@ const handleRegister = async () => {
     return
   }
 
+  registerLoading.value = true
   try {
     // 获取公钥并加密密码
     const pubKeyRes = await getPublicKey()
@@ -308,6 +310,8 @@ const handleRegister = async () => {
   } catch (err: unknown) {
     const error = err as Error
     appStore.showToast(error.message || t.value.registrationFailed, 'error')
+  } finally {
+    registerLoading.value = false
   }
 }
 
@@ -579,7 +583,10 @@ const handleResetPassword = async () => {
 
         <div class="modal-actions">
           <button class="btn-text" @click="showRegisterModal = false">{{ t.cancel }}</button>
-          <button class="btn-primary" @click="handleRegister">{{ t.createAccount }}</button>
+          <button class="btn-primary" :disabled="registerLoading" @click="handleRegister">
+            <span v-if="!registerLoading">{{ t.createAccount }}</span>
+            <span v-else class="spinner-sm"></span>
+          </button>
         </div>
       </div>
     </div>

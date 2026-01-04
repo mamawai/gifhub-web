@@ -384,11 +384,17 @@ onDeactivated(() => {
 }
 
 .search-section {
-  padding: 2rem 0 1rem;
+  padding: 2rem 1rem 1rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .search-section {
+    padding: 2rem 0 1rem;
+  }
 }
 
 /* Modern Gliding Segmented Control */
@@ -566,6 +572,13 @@ onDeactivated(() => {
   position: relative;
   display: flex;
   align-items: center;
+  padding: 0 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .search-bar {
+    padding: 0;
+  }
 }
 
 .search-icon {
@@ -584,14 +597,15 @@ onDeactivated(() => {
   padding: 0 1.5rem 0 3.5rem;
   color: var(--color-text-main);
   font-size: 1rem;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .search-bar input:focus {
   outline: none;
   background: var(--color-surface-hover);
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
 }
 
 .search-bar input::placeholder {

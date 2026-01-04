@@ -583,10 +583,7 @@ const handleResetPassword = async () => {
 
         <div class="modal-actions">
           <button class="btn-text" @click="showRegisterModal = false">{{ t.cancel }}</button>
-          <button class="btn-primary" :disabled="registerLoading" @click="handleRegister">
-            <span v-if="!registerLoading">{{ t.createAccount }}</span>
-            <span v-else class="spinner-sm"></span>
-          </button>
+          <button class="btn-primary" @click="handleRegister">{{ t.createAccount }}</button>
         </div>
       </div>
     </div>
@@ -642,6 +639,14 @@ const handleResetPassword = async () => {
           <button class="btn-text" @click="showResetPasswordModal = false">{{ t.cancel }}</button>
           <button class="btn-primary" @click="handleResetPassword">{{ t.resetPassword }}</button>
         </div>
+      </div>
+    </div>
+
+    <!-- 全屏加载提示 -->
+    <div v-if="registerLoading" class="fullscreen-loading">
+      <div class="loading-content">
+        <div class="spinner-large"></div>
+        <p class="loading-text">创建账户中...</p>
       </div>
     </div>
   </div>
@@ -1346,5 +1351,50 @@ input:focus + .field-icon,
 .fade-slide-leave-to {
   opacity: 0;
   transform: translateX(10px);
+}
+
+/* 全屏加载提示 */
+.fullscreen-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.spinner-large {
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 1s ease-in-out infinite;
+}
+
+.loading-text {
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 </style>

@@ -44,7 +44,7 @@ export function login(data: EmailLoginDTO) {
 /**
  * 获取验证码
  */
-export function getCode(params: { email: string }) {
+export function getCode(params: { email: string; turnstileToken: string }) {
   return request<boolean>({
     url: '/user/web/code',
     method: 'POST',
@@ -131,11 +131,11 @@ export function isEmailVerified() {
 /**
  * 发送重置密码验证码
  */
-export function sendResetPasswordCode(email: string) {
+export function sendResetPasswordCode(email: string, turnstileToken: string) {
   return request<boolean>({
     url: '/user/reset-password/code',
     method: 'POST',
-    params: { email },
+    params: { email, turnstileToken },
   })
 }
 

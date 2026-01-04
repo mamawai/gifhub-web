@@ -2,7 +2,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Eye, EyeOff, Mail, Lock, MessageSquare, ArrowRight, Languages } from 'lucide-vue-next'
-import { getCode, emailRegister, getPublicKey, sendResetPasswordCode, resetPassword, ipPreCheck } from '@/api/user'
+import {
+  getCode,
+  emailRegister,
+  getPublicKey,
+  sendResetPasswordCode,
+  resetPassword,
+  ipPreCheck,
+} from '@/api/user'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 import { useLocaleStore } from '@/stores/locale'
@@ -11,11 +18,71 @@ import rsaEncrypt from '@/utils/encrypt'
 import { generateFingerprint } from '@/utils/fingerprint'
 import type { ProxyCheckResponse } from '@/api/types'
 
+// Turnstile 类型声明
+declare global {
+  interface Window {
+    turnstile: {
+      render: (
+        container: string | HTMLElement,
+        options: {
+          sitekey: string
+          callback: (token: string) => void
+          'error-callback'?: () => void
+        },
+      ) => string
+      reset: (widgetId: string) => void
+      remove: (widgetId: string) => void
+    }
+  }
+}
+
 const router = useRouter()
 const userStore = useUserStore()
 const appStore = useAppStore()
 const localeStore = useLocaleStore()
 const t = computed(() => messages[localeStore.locale].login)
+
+// Turnstile 配置
+const TURNSTILE_SITE_KEY = '0x4AAAAAACKYzAlxGJtUFk-_'
+
+// Turnstile 验证方法
+const getTurnstileToken = (): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    // 等待 Turnstile 脚本加载（最多等待10秒）
+    const checkTurnstile = (attempts = 0) => {
+      if (window.turnstile) {
+        // 脚本已加载，渲染验证组件
+        const container = document.createElement('div')
+        container.style.position = 'fixed'
+        container.style.top = '50%'
+        container.style.left = '50%'
+        container.style.transform = 'translate(-50%, -50%)'
+        container.style.zIndex = '10000'
+        document.body.appendChild(container)
+
+        const widgetId = window.turnstile.render(container, {
+          sitekey: TURNSTILE_SITE_KEY,
+          callback: (token: string) => {
+            window.turnstile.remove(widgetId)
+            document.body.removeChild(container)
+            resolve(token)
+          },
+          'error-callback': () => {
+            window.turnstile.remove(widgetId)
+            document.body.removeChild(container)
+            reject(new Error('验证失败'))
+          },
+        })
+      } else if (attempts < 100) {
+        // 每100ms检查一次，最多尝试100次（10秒）
+        setTimeout(() => checkTurnstile(attempts + 1), 100)
+      } else {
+        reject(new Error('Turnstile 加载超时'))
+      }
+    }
+    checkTurnstile()
+  })
+}
 
 const activeTab = ref<'password' | 'code'>('password')
 const showPassword = ref(false)
@@ -112,7 +179,10 @@ const handleGetCode = async () => {
 
   codeLoading.value = true
   try {
-    const res = await getCode({ email: email.value })
+    // 先获取 Turnstile token
+    const turnstileToken = await getTurnstileToken()
+
+    const res = await getCode({ email: email.value, turnstileToken })
     if (res === true) {
       startCountdown()
     } else {
@@ -145,6 +215,9 @@ const handleLogin = async () => {
   loading.value = true
 
   try {
+    // 先获取 Turnstile token
+    const turnstileToken = await getTurnstileToken()
+
     let finalPassword = password.value
 
     // Encrypt password if in password mode
@@ -162,6 +235,7 @@ const handleLogin = async () => {
       email: email.value,
       password: finalPassword,
       verificationCode: code.value,
+      turnstileToken,
     })
 
     appStore.showToast(t.value.welcomeBack, 'success')
@@ -195,6 +269,9 @@ const handleRegister = async () => {
   }
 
   try {
+    // 先获取 Turnstile token
+    const turnstileToken = await getTurnstileToken()
+
     // 获取公钥并加密密码
     const pubKeyRes = await getPublicKey()
     if (!pubKeyRes) {
@@ -215,7 +292,8 @@ const handleRegister = async () => {
       email: email.value,
       password: encrypted,
       verificationCode: registerCode.value,
-      fingerprint: browserFingerprint.value
+      fingerprint: browserFingerprint.value,
+      turnstileToken,
     })
 
     // 注册成功，使用返回的 token 设置登录状态
@@ -251,7 +329,10 @@ const handleGetResetCode = async () => {
 
   resetCodeLoading.value = true
   try {
-    const res = await sendResetPasswordCode(resetEmail.value)
+    // 先获取 Turnstile token
+    const turnstileToken = await getTurnstileToken()
+
+    const res = await sendResetPasswordCode(resetEmail.value, turnstileToken)
     if (res === true) {
       startResetCountdown()
       appStore.showToast(t.value.resetCodeSent, 'success')
@@ -419,7 +500,9 @@ const handleResetPassword = async () => {
                   </button>
                 </div>
                 <div class="input-footer">
-                  <div class="forgot-link" @click="openResetPasswordModal">{{ t.forgotPassword }}</div>
+                  <div class="forgot-link" @click="openResetPasswordModal">
+                    {{ t.forgotPassword }}
+                  </div>
                 </div>
               </div>
 
@@ -457,9 +540,9 @@ const handleResetPassword = async () => {
               <span
                 class="risk-value"
                 :class="{
-                  'safe': proxyCheckData.risk < 30,
-                  'warning': proxyCheckData.risk >= 30 && proxyCheckData.risk < 60,
-                  'danger': proxyCheckData.risk >= 60
+                  safe: proxyCheckData.risk < 30,
+                  warning: proxyCheckData.risk >= 30 && proxyCheckData.risk < 60,
+                  danger: proxyCheckData.risk >= 60,
                 }"
               >
                 {{ proxyCheckData.risk }}/100

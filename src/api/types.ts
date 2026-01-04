@@ -49,6 +49,8 @@ export interface EmailLoginDTO {
   verificationCode?: string
   /** 登录类型：1-密码登录，2-验证码登录 */
   loginType: number
+  /** Turnstile验证token */
+  turnstileToken: string
 }
 
 /**
@@ -140,7 +142,8 @@ export interface EmailRegisterDTO {
   email: string
   password: string
   verificationCode: string
-  fingerprint:string
+  fingerprint: string
+  turnstileToken: string
 }
 
 /**

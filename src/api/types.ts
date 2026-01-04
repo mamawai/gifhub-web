@@ -143,7 +143,6 @@ export interface EmailRegisterDTO {
   password: string
   verificationCode: string
   fingerprint: string
-  turnstileToken: string
 }
 
 /**

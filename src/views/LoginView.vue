@@ -215,13 +215,14 @@ const handleLogin = async () => {
   loading.value = true
 
   try {
-    // 先获取 Turnstile token
-    const turnstileToken = await getTurnstileToken()
-
+    let turnstileToken = ''
     let finalPassword = password.value
 
     // Encrypt password if in password mode
     if (activeTab.value === 'password') {
+      // 只在密码登录时获取 Turnstile token
+      turnstileToken = await getTurnstileToken()
+
       const pubKeyRes = await getPublicKey()
       if (pubKeyRes) {
         rsaEncrypt.setPublicKey(pubKeyRes)
@@ -269,9 +270,6 @@ const handleRegister = async () => {
   }
 
   try {
-    // 先获取 Turnstile token
-    const turnstileToken = await getTurnstileToken()
-
     // 获取公钥并加密密码
     const pubKeyRes = await getPublicKey()
     if (!pubKeyRes) {
@@ -293,7 +291,6 @@ const handleRegister = async () => {
       password: encrypted,
       verificationCode: registerCode.value,
       fingerprint: browserFingerprint.value,
-      turnstileToken,
     })
 
     // 注册成功，使用返回的 token 设置登录状态

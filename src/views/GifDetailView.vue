@@ -717,6 +717,12 @@ onMounted(() => {
   }
 }
 
+@media (max-width: 640px) {
+  .comments-section {
+    padding: 0.5rem;
+  }
+}
+
 /* Loading & Error States */
 .loading,
 .error {

@@ -842,7 +842,6 @@ onMounted(() => {
 
 .title-icon {
   color: var(--color-primary);
-  animation: float 3s ease-in-out infinite;
 }
 
 .comment-count {
@@ -1586,6 +1585,7 @@ onMounted(() => {
   /* 标题区域 */
   .section-title {
     font-size: 1.3rem;
+    margin-top: 1rem;
     margin-bottom: 1.5rem;
     gap: 0.6rem;
   }
@@ -1673,6 +1673,7 @@ onMounted(() => {
   /* 评论列表 */
   .comment-list {
     gap: 1rem;
+    margin-top: -1rem;
   }
 
   /* 评论卡片 */

@@ -496,8 +496,8 @@ const handleResetPassword = async () => {
                     :placeholder="t.passwordPlaceholder"
                   />
                   <button class="eye-btn" @click="showPassword = !showPassword">
-                    <Eye v-if="!showPassword" :size="20" />
-                    <EyeOff v-else :size="20" />
+                    <EyeOff v-if="!showPassword" :size="20" />
+                    <Eye v-else :size="20" />
                   </button>
                 </div>
                 <div class="input-footer">

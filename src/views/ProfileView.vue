@@ -109,7 +109,7 @@ const fetchUploads = async () => {
     const message = (res as { message?: string })?.message || ''
     const match = message.match(/success:(\d+)/)
     if (match) {
-      uploadedGifsTotal.value = parseInt(match[1], 10)
+      uploadedGifsTotal.value = parseInt(match[1]!, 10)
     } else {
       uploadedGifsTotal.value = list.length
     }

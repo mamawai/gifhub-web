@@ -196,7 +196,7 @@ const skeletonPositions = computed(() => {
   for (let i = 0; i < 20; i++) {
     const minHeight = Math.min(...heights)
     const colIndex = heights.indexOf(minHeight)
-    const cardHeight = colWidth / skeletonAspectRatios[i]
+    const cardHeight = colWidth / (skeletonAspectRatios[i] ?? 1)
 
     result.push({
       x: colIndex * (colWidth + props.gap),

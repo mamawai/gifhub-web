@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { RouterView, useRoute } from 'vue-router'
 import ToastNotification from '@/components/ToastNotification.vue'
-import { ref, watch, onMounted } from 'vue'
+import NavBar from '@/components/NavBar.vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useNotificationStore } from '@/stores/notification'
 import { useSettingsStore } from '@/stores/settings'
@@ -11,6 +12,11 @@ const userStore = useUserStore()
 const notificationStore = useNotificationStore()
 const settingsStore = useSettingsStore()
 const transitionName = ref('fade')
+
+// 只在 Home 和 Giphy 页面显示 NavBar
+const showNavBar = computed(() => {
+  return route.path === '/' || route.path === '/giphy'
+})
 
 // 需要连接通知的页面
 const pagesWithNotification = ['/', '/giphy']
@@ -59,6 +65,7 @@ onMounted(() => {
 
 <template>
   <ToastNotification />
+  <NavBar v-if="showNavBar" />
   <div class="router-view-container">
     <RouterView v-slot="{ Component, route }">
       <Transition :name="transitionName" mode="out-in">
@@ -80,7 +87,7 @@ onMounted(() => {
 
 .view-content {
   width: 100%;
-  will-change: opacity, transform;
+  will-change: opacity;
 }
 
 /* Base Transition Settings */
@@ -90,27 +97,23 @@ onMounted(() => {
 .slide-right-leave-active,
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.2s ease;
 }
 
 /* Slide Left (Go Deeper) */
 .slide-left-enter-from {
   opacity: 0;
-  transform: translateX(30px);
 }
 .slide-left-leave-to {
   opacity: 0;
-  transform: translateX(-30px);
 }
 
 /* Slide Right (Go Back) */
 .slide-right-enter-from {
   opacity: 0;
-  transform: translateX(-30px);
 }
 .slide-right-leave-to {
   opacity: 0;
-  transform: translateX(30px);
 }
 
 /* Fade Fallback */

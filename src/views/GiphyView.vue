@@ -4,7 +4,6 @@ defineOptions({
 })
 
 import { ref, onMounted, computed } from 'vue'
-import NavBar from '@/components/NavBar.vue'
 import VirtualMasonry from '@/components/VirtualMasonry.vue'
 import GiphyModal from '@/components/GiphyModal.vue'
 import { getTrending, search } from '@/api/giphy'
@@ -158,8 +157,6 @@ onMounted(() => {
 
 <template>
   <div class="giphy-view">
-    <NavBar />
-
     <main class="main-content">
       <div class="giphy-header container">
         <h1 class="page-title">

@@ -15,7 +15,6 @@ defineOptions({
 
 import { useRouter } from 'vue-router'
 import { Search } from 'lucide-vue-next'
-import NavBar from '@/components/NavBar.vue'
 import VirtualMasonry from '@/components/VirtualMasonry.vue'
 import { getRandomGifListFirst, getRandomGifList, hotGifs, latestGifs } from '@/api/gif'
 import { getGifsByTagId } from '@/api/tag'
@@ -268,8 +267,6 @@ onDeactivated(() => {
 
 <template>
   <div class="home-view">
-    <NavBar />
-
     <main class="main-content">
       <!-- Search Bar Section -->
       <section class="search-section container">

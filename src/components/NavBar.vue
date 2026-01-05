@@ -373,20 +373,12 @@ const navigateTo = (path: string) => {
   right: 0;
   height: 72px;
   z-index: 100;
-  transition: all 0.3s ease;
-  border-bottom: 1px solid transparent;
-  background: transparent;
+  background: var(--color-background);
+  backdrop-filter: blur(12px);
 }
 
 .navbar.is-scrolled {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--color-border);
-}
-
-/* Dark mode specific override via global selector or relying on transparent bg + var */
-:global(.dark) .navbar.is-scrolled {
-  background: rgba(26, 26, 30, 0.85);
+  background: var(--color-navbar-scrolled);
 }
 
 .navbar-content {

@@ -4,10 +4,11 @@
 */
 :root {
   /* Core Palette - Light Mode (Fallback/Secondary) */
-  --color-background: #ffffff;
+  --color-background: #f9f9fb;
   --color-surface: #f4f4f5;
   --color-surface-glass: rgba(255, 255, 255, 0.7);
   --color-surface-hover: #e4e4e7;
+  --color-navbar-scrolled: rgba(249, 249, 251, 0.85);
 
   /* Primary Brand - Vibrant Indigo/Purple */
   --color-primary: #6366f1;
@@ -67,6 +68,7 @@
   --color-surface: #242428;
   --color-surface-glass: rgba(36, 36, 40, 0.6);
   --color-surface-hover: #2e2e33;
+  --color-navbar-scrolled: rgba(26, 26, 30, 0.9);
 
   --color-text-main: #fafafa;
   --color-text-muted: #a1a1aa;
@@ -84,7 +86,6 @@
 *::after {
   box-sizing: border-box;
   margin: 0;
-  position: relative;
 }
 
 html {

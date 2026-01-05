@@ -11,7 +11,7 @@ import {
   deleteAccount as deleteAccountApi,
   getPublicKey,
 } from '@/api/user'
-import { getUserLikeList as getUserLikeListApi } from '@/api/gif'
+import { getUserLikeList as getUserLikeListApi, getCategoryGifCount } from '@/api/gif'
 import { getCategoryList } from '@/api/category'
 import GifGrid from '@/components/GifGrid.vue'
 import type { GifDTO, UserLikeVO } from '@/api/types'
@@ -45,6 +45,7 @@ const localeStore = useLocaleStore()
 const t = computed(() => messages[localeStore.locale].profile)
 const activeTab = ref<'uploads' | 'likes'>('uploads')
 const uploadedGifs = ref<GifDTO[]>([])
+const uploadedGifsTotal = ref(0)
 const likedGifs = ref<UserLikeVO[]>([])
 const categories = ref<{ id: number; categoryName: string; count: number }[]>([])
 const selectedCategoryId = ref<number | null>(null)
@@ -59,6 +60,8 @@ const showSettingsMenu = ref(false)
 const showDeleteAccountModal = ref(false)
 const deletePassword = ref('')
 const isDeleting = ref(false)
+const totalLikedCount = ref(0)
+const loadingLikedCount = ref(false)
 
 // Detail Modal State REMOVED
 // const selectedGif = ref<GifDTO | null>(null)
@@ -98,10 +101,18 @@ const fetchUploads = async () => {
   try {
     const res = await getUserGifsApi({ pageNum: 1, pageSize: 50 })
     const list =
-      (res as { records?: GifDTO[]; data?: GifDTO[] })?.records ||
-      (res as { records?: GifDTO[]; data?: GifDTO[] })?.data ||
+      (res as { data?: GifDTO[] })?.data ||
       (Array.isArray(res) ? res : [])
     uploadedGifs.value = list.map(processGifData)
+
+    // 从 message 中解析 total（格式：success:123）
+    const message = (res as { message?: string })?.message || ''
+    const match = message.match(/success:(\d+)/)
+    if (match) {
+      uploadedGifsTotal.value = parseInt(match[1], 10)
+    } else {
+      uploadedGifsTotal.value = list.length
+    }
   } catch (err) {
     console.error('Fetch uploads failed', err)
   } finally {
@@ -115,10 +126,47 @@ const fetchCategories = async () => {
     const res = await getCategoryList()
     categories.value =
       (res as { records?: typeof categories.value })?.records || (Array.isArray(res) ? res : [])
+
+    // 批量查询收藏数量（每次5个）
+    if (categories.value.length > 0) {
+      fetchTotalLikedCount()
+    }
   } catch (err) {
     console.error('Fetch categories failed', err)
   } finally {
     loadingCategories.value = false
+  }
+}
+
+// 批量查询收藏总数（每次5个分类）
+const fetchTotalLikedCount = async () => {
+  const categoryIds = categories.value.map((c) => c.id)
+  const batchSize = 5
+  let total = 0
+
+  loadingLikedCount.value = true
+  try {
+    for (let i = 0; i < categoryIds.length; i += batchSize) {
+      const batch = categoryIds.slice(i, i + batchSize)
+      const results = await Promise.all(
+        batch.map((id) =>
+          getCategoryGifCount(id)
+            .then((count) => ({ id, count: Number(count) || 0 }))
+            .catch(() => ({ id, count: 0 }))
+        )
+      )
+      // 更新每个分类的 count
+      results.forEach(({ id, count }) => {
+        const cat = categories.value.find((c) => c.id === id)
+        if (cat) {
+          cat.count = count
+        }
+        total += count
+      })
+    }
+    totalLikedCount.value = total
+  } finally {
+    loadingLikedCount.value = false
   }
 }
 
@@ -317,6 +365,7 @@ const confirmDeleteAccount = async () => {
 onMounted(() => {
   if (userStore.isLoggedIn) {
     fetchUploads()
+    fetchCategories()
   }
 })
 </script>
@@ -407,12 +456,15 @@ onMounted(() => {
         <!-- Stats Row -->
         <div class="stats-row">
           <div class="stat-item">
-            <div class="stat-value">{{ uploadedGifs.length }}</div>
+            <div class="stat-value">{{ uploadedGifsTotal }}</div>
             <div class="stat-label">{{ t.myMasterpieces }}</div>
           </div>
           <div class="stat-divider"></div>
           <div class="stat-item">
-            <div class="stat-value">{{ categories.length }}</div>
+            <div class="stat-value">
+              <span v-if="loadingLikedCount" class="stat-spinner"></span>
+              <span v-else>{{ totalLikedCount }}</span>
+            </div>
             <div class="stat-label">{{ t.collections }}</div>
           </div>
           <div class="stat-divider"></div>
@@ -431,7 +483,6 @@ onMounted(() => {
             class="tab-active-indicator"
             :style="{
               transform: activeTab === 'uploads' ? 'translateX(0)' : 'translateX(100%)',
-              width: '50%',
             }"
           ></div>
           <button
@@ -587,14 +638,12 @@ onMounted(() => {
   right: 0;
   height: 72px;
   z-index: 100;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.95);
   border-bottom: 1px solid var(--color-border);
-  transition: all 0.3s ease;
 }
 
 :global(.dark) .profile-header-bar {
-  background: rgba(9, 9, 11, 0.8);
+  background: rgba(26, 26, 30, 0.95);
 }
 
 .header-content {
@@ -654,26 +703,12 @@ onMounted(() => {
   background: linear-gradient(
     90deg,
     #9933ff 0%,
-    #ff6666 25%,
-    #ffaa00 50%,
-    #ff6666 75%,
+    #ff6666 50%,
     #9933ff 100%
   );
-  background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: aurora-flow 4s linear infinite;
-  filter: drop-shadow(0 0 20px rgba(153, 51, 255, 0.6));
-}
-
-@keyframes aurora-flow {
-  0% {
-    background-position: 0% center;
-  }
-  100% {
-    background-position: 200% center;
-  }
 }
 
 .spacer {
@@ -712,8 +747,7 @@ onMounted(() => {
 .shape {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.6;
+  opacity: 0.4;
 }
 
 .shape-1 {
@@ -722,7 +756,7 @@ onMounted(() => {
   background: var(--color-accent);
   top: -100px;
   left: -50px;
-  animation: float 20s infinite alternate;
+  filter: blur(60px);
 }
 
 .shape-2 {
@@ -731,16 +765,7 @@ onMounted(() => {
   background: var(--color-primary);
   bottom: -150px;
   right: -100px;
-  animation: float 25s infinite alternate-reverse;
-}
-
-@keyframes float {
-  from {
-    transform: translate(0, 0) scale(1);
-  }
-  to {
-    transform: translate(100px, 50px) scale(1.2);
-  }
+  filter: blur(60px);
 }
 
 /* Content Container & Cards */
@@ -754,7 +779,7 @@ onMounted(() => {
 }
 
 .identity-card {
-  padding: 2.5rem;
+  padding: 2.5rem 2.5rem 1.5rem;
   border-radius: var(--radius-xl);
 }
 
@@ -941,8 +966,7 @@ onMounted(() => {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1073,7 +1097,7 @@ onMounted(() => {
 /* Stats */
 .stats-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 3rem;
   padding-top: 2rem;
   border-top: 1px solid var(--color-border-glass);
@@ -1091,6 +1115,19 @@ onMounted(() => {
   font-size: 1.75rem;
   font-weight: 800;
   color: var(--color-text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.2rem;
+}
+
+.stat-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-surface-hover);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 .stat-label {
@@ -1124,11 +1161,15 @@ onMounted(() => {
   width: 100%;
   max-width: 400px;
   position: relative;
+  overflow: hidden;
 }
 
 .tab-active-indicator {
   position: absolute;
+  top: 4px;
+  left: 4px;
   height: calc(100% - 8px);
+  width: calc(50% - 4px);
   background: var(--color-surface);
   border-radius: 12px;
   transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);

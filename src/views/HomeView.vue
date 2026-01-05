@@ -2,7 +2,6 @@
 import {
   ref,
   onMounted,
-  onUnmounted,
   onActivated,
   onDeactivated,
   nextTick,
@@ -17,7 +16,7 @@ defineOptions({
 import { useRouter } from 'vue-router'
 import { Search } from 'lucide-vue-next'
 import NavBar from '@/components/NavBar.vue'
-import GifCard from '@/components/GifCard.vue'
+import VirtualMasonry from '@/components/VirtualMasonry.vue'
 import { getRandomGifListFirst, getRandomGifList, hotGifs, latestGifs } from '@/api/gif'
 import { getGifsByTagId } from '@/api/tag'
 import type { GifDTO } from '@/api/types'
@@ -161,16 +160,6 @@ const fetchGifs = async (isLoadMore = false) => {
   }
 }
 
-// Scroll Handler
-const handleScroll = () => {
-  const bottomOfWindow =
-    document.documentElement.scrollTop + window.innerHeight >=
-    document.documentElement.offsetHeight - 200
-  if (bottomOfWindow) {
-    fetchGifs(true)
-  }
-}
-
 // Interactions
 const handleGifClick = (gif: GifDTO) => {
   // selectedGif.value = gif
@@ -247,22 +236,12 @@ watch(
 onMounted(() => {
   // 初始化滑块位置
   updateGlider()
-  // 添加滚动监听器
-  window.addEventListener('scroll', handleScroll)
   // 加载数据（只调用一次）
   fetchGifs()
-  // 通知初始化已由 WebSocket 连接时统一处理，不需要在这里调用
-})
-
-onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll)
 })
 
 // KeepAlive 生命周期钩子
 onActivated(() => {
-  // 组件被激活时重新添加滚动监听器
-  window.addEventListener('scroll', handleScroll)
-
   // 恢复所有视频的播放
   nextTick(() => {
     const videos = document.querySelectorAll('.home-view video')
@@ -278,9 +257,6 @@ onActivated(() => {
 })
 
 onDeactivated(() => {
-  // 组件被停用时移除滚动监听器
-  window.removeEventListener('scroll', handleScroll)
-
   // 暂停所有视频以节省资源
   const videos = document.querySelectorAll('.home-view video')
   videos.forEach((video) => {
@@ -342,27 +318,20 @@ onDeactivated(() => {
       </section>
 
       <section class="feed container">
-        <div v-if="loading" class="loading-state">
-          <div class="spinner"></div>
-        </div>
-
-        <div v-else-if="error" class="error-state">
+        <div v-if="error" class="error-state">
           {{ t.failedToLoad }}
           <button @click="fetchGifs(false)">{{ t.retry }}</button>
         </div>
 
-        <div v-else class="masonry-grid">
-          <GifCard
-            v-for="(gif, index) in gifs"
-            :key="gif.id || index"
-            :gif="gif"
-            @click="handleGifClick"
-          />
-        </div>
-
-        <div v-if="loadingMore" class="loading-more">
-          <div class="spinner small"></div>
-        </div>
+        <VirtualMasonry
+          v-else
+          :items="gifs"
+          :gap="16"
+          :loading="loading"
+          :loading-more="loadingMore"
+          @click="handleGifClick"
+          @load-more="fetchGifs(true)"
+        />
       </section>
     </main>
 
@@ -629,60 +598,6 @@ onDeactivated(() => {
 
 .feed {
   margin-top: 2rem;
-}
-
-.masonry-grid {
-  column-count: 2;
-  column-gap: 1rem;
-}
-
-@media (min-width: 640px) {
-  .masonry-grid {
-    column-count: 3;
-    column-gap: 1.5rem;
-  }
-}
-
-@media (min-width: 1024px) {
-  .masonry-grid {
-    column-count: 4;
-    column-gap: 2rem;
-  }
-}
-
-@media (min-width: 1280px) {
-  .masonry-grid {
-    column-count: 5;
-  }
-}
-
-.loading-state,
-.loading-more {
-  display: flex;
-  justify-content: center;
-  padding: 2rem;
-  width: 100%;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--color-surface-hover);
-  border-radius: 50%;
-  border-top-color: var(--color-primary);
-  animation: spin 1s ease-in-out infinite;
-}
-
-.spinner.small {
-  width: 24px;
-  height: 24px;
-  border-width: 2px;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .error-state {

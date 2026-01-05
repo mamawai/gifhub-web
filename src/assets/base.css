@@ -63,17 +63,17 @@
 /* Force Dark Mode if class present (optional) */
 /* Force Dark Mode if class present (optional) */
 .dark {
-  --color-background: #09090b;
-  --color-surface: #18181b;
-  --color-surface-glass: rgba(24, 24, 27, 0.6);
-  --color-surface-hover: #27272a;
+  --color-background: #1a1a1e;
+  --color-surface: #242428;
+  --color-surface-glass: rgba(36, 36, 40, 0.6);
+  --color-surface-hover: #2e2e33;
 
   --color-text-main: #fafafa;
   --color-text-muted: #a1a1aa;
   --color-text-dim: #71717a;
-  --color-text-inverse: #09090b;
+  --color-text-inverse: #1a1a1e;
 
-  --color-border: #27272a;
+  --color-border: #3a3a3f;
   --color-border-glass: rgba(255, 255, 255, 0.08);
 
   color-scheme: dark;

@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { RouterView, useRoute } from 'vue-router'
 import ToastNotification from '@/components/ToastNotification.vue'
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useNotificationStore } from '@/stores/notification'
+import { useSettingsStore } from '@/stores/settings'
 
 const route = useRoute()
 const userStore = useUserStore()
 const notificationStore = useNotificationStore()
+const settingsStore = useSettingsStore()
 const transitionName = ref('fade')
+
+// 需要连接通知的页面
+const pagesWithNotification = ['/', '/giphy']
 
 watch(
   () => route.path,
@@ -31,24 +36,24 @@ watch(
     } else {
       transitionName.value = 'fade'
     }
-  },
-)
 
-// 监听用户登录状态，初始化通知
-watch(
-  () => userStore.isLoggedIn,
-  (isLoggedIn) => {
-    if (isLoggedIn) {
-      notificationStore.connect()
-    } else {
-      notificationStore.disconnect()
+    // 只在 HomeView 和 GiphyView 连接通知
+    if (userStore.isLoggedIn && pagesWithNotification.includes(to)) {
+      if (!notificationStore.isConnected) {
+        notificationStore.connect()
+      }
     }
   },
-  { immediate: true }, // 立即执行，无需在 onMounted 中重复调用
+  { immediate: true },
 )
 
-onUnmounted(() => {
-  notificationStore.disconnect()
+// 页面加载时确保主题正确应用
+onMounted(() => {
+  if (settingsStore.isDark) {
+    document.documentElement.classList.add('dark')
+  } else {
+    document.documentElement.classList.remove('dark')
+  }
 })
 </script>
 
@@ -56,9 +61,8 @@ onUnmounted(() => {
   <ToastNotification />
   <div class="router-view-container">
     <RouterView v-slot="{ Component, route }">
-      <Transition :name="transitionName" mode="default">
-        <!-- mode="default" is important for simultaneous transitions -->
-        <KeepAlive :include="['HomeView']">
+      <Transition :name="transitionName" mode="out-in">
+        <KeepAlive :include="['HomeView', 'GiphyView']">
           <component :is="Component" :key="route.path" class="view-content" />
         </KeepAlive>
       </Transition>
@@ -68,8 +72,6 @@ onUnmounted(() => {
 
 <style>
 .router-view-container {
-  display: grid;
-  grid-template-areas: 'content';
   width: 100%;
   min-height: 100vh;
   position: relative;
@@ -77,9 +79,8 @@ onUnmounted(() => {
 }
 
 .view-content {
-  grid-area: content;
   width: 100%;
-  backface-visibility: hidden; /* Reduce flickering */
+  will-change: opacity, transform;
 }
 
 /* Base Transition Settings */
@@ -89,59 +90,27 @@ onUnmounted(() => {
 .slide-right-leave-active,
 .fade-enter-active,
 .fade-leave-active {
-  transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
-/* Slide Left (Go Deeper) - New comes from Right, Old goes Left */
+/* Slide Left (Go Deeper) */
 .slide-left-enter-from {
   opacity: 0;
-  transform: translate3d(50px, 0, 0) scale(0.95);
-  filter: blur(10px);
-  z-index: 2;
-}
-.slide-left-enter-to {
-  opacity: 1;
-  transform: translate3d(0, 0, 0) scale(1);
-  filter: blur(0);
-  z-index: 2;
-}
-
-.slide-left-leave-from {
-  opacity: 1;
-  transform: translate3d(0, 0, 0) scale(1);
-  z-index: 1;
+  transform: translateX(30px);
 }
 .slide-left-leave-to {
   opacity: 0;
-  transform: translate3d(-50px, 0, 0) scale(0.95);
-  filter: blur(10px);
-  z-index: 1;
+  transform: translateX(-30px);
 }
 
-/* Slide Right (Go Back) - New comes from Left, Old goes Right */
+/* Slide Right (Go Back) */
 .slide-right-enter-from {
   opacity: 0;
-  transform: translate3d(-50px, 0, 0) scale(0.95);
-  filter: blur(10px);
-  z-index: 2;
-}
-.slide-right-enter-to {
-  opacity: 1;
-  transform: translate3d(0, 0, 0) scale(1);
-  filter: blur(0);
-  z-index: 2;
-}
-
-.slide-right-leave-from {
-  opacity: 1;
-  transform: translate3d(0, 0, 0) scale(1);
-  z-index: 1;
+  transform: translateX(-30px);
 }
 .slide-right-leave-to {
   opacity: 0;
-  transform: translate3d(50px, 0, 0) scale(0.95);
-  filter: blur(10px);
-  z-index: 1;
+  transform: translateX(30px);
 }
 
 /* Fade Fallback */

@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+defineOptions({
+  name: 'GiphyView',
+})
+
+import { ref, onMounted, computed } from 'vue'
 import NavBar from '@/components/NavBar.vue'
-import GifCard from '@/components/GifCard.vue'
+import VirtualMasonry from '@/components/VirtualMasonry.vue'
 import GiphyModal from '@/components/GiphyModal.vue'
 import { getTrending, search } from '@/api/giphy'
 import { likeGiphy } from '@/api/gif'
@@ -116,16 +120,6 @@ const handleSearch = () => {
   fetchGifs()
 }
 
-const handleScroll = () => {
-  const bottomOfWindow =
-    document.documentElement.scrollTop + window.innerHeight >=
-    document.documentElement.offsetHeight - 200
-
-  if (bottomOfWindow && hasMore.value && !loading.value && !loadingMore.value) {
-    fetchGifs(true)
-  }
-}
-
 const handleGifClick = (gif: GifDTO) => {
   selectedGif.value = {
     id: String(gif.giphyId || gif.id),
@@ -158,12 +152,7 @@ const handleLike = async () => {
 }
 
 onMounted(() => {
-  window.addEventListener('scroll', handleScroll)
   fetchGifs()
-})
-
-onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll)
 })
 </script>
 
@@ -191,24 +180,22 @@ onUnmounted(() => {
       </div>
 
       <section class="feed container">
-        <div v-if="loading" class="loading-state">
-          <div class="spinner"></div>
-        </div>
-
-        <div v-else-if="error" class="error-state">
+        <div v-if="error" class="error-state">
           {{ error }}
           <button @click="fetchGifs(false)">{{ t.retry }}</button>
         </div>
 
-        <div v-else-if="gifs.length === 0" class="empty-state">{{ t.noResults }}</div>
+        <div v-else-if="!loading && gifs.length === 0" class="empty-state">{{ t.noResults }}</div>
 
-        <div v-else class="masonry-grid">
-          <GifCard v-for="gif in gifs" :key="gif.id" :gif="gif" @click="handleGifClick" />
-        </div>
-
-        <div v-if="loadingMore" class="loading-more">
-          <div class="spinner small"></div>
-        </div>
+        <VirtualMasonry
+          v-else
+          :items="gifs"
+          :gap="16"
+          :loading="loading"
+          :loading-more="loadingMore"
+          @click="handleGifClick"
+          @load-more="fetchGifs(true)"
+        />
       </section>
     </main>
 
@@ -285,60 +272,11 @@ onUnmounted(() => {
   box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
 }
 
-/* Reuse Grid Styles */
-.masonry-grid {
-  column-count: 2;
-  column-gap: 1rem;
-}
-
-@media (min-width: 640px) {
-  .masonry-grid {
-    column-count: 3;
-    column-gap: 1.5rem;
-  }
-}
-
-@media (min-width: 1024px) {
-  .masonry-grid {
-    column-count: 4;
-    column-gap: 2rem;
-  }
-}
-
-@media (min-width: 1280px) {
-  .masonry-grid {
-    column-count: 5;
-  }
-}
-
-.loading-state,
-.loading-more,
 .empty-state {
   display: flex;
   justify-content: center;
   padding: 2rem;
   width: 100%;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--color-surface-hover);
-  border-radius: 50%;
-  border-top-color: var(--color-primary);
-  animation: spin 1s ease-in-out infinite;
-}
-
-.spinner.small {
-  width: 24px;
-  height: 24px;
-  border-width: 2px;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .error-state {

@@ -221,3 +221,14 @@ export function latestGifs(params: LatestGifsParams) {
     params,
   })
 }
+
+/**
+ * 查询用户指定分类下的gif数量
+ */
+export function getCategoryGifCount(categoryId: number) {
+  return request<number>({
+    baseUrl: config.gifUrl,
+    url: `/gif/category/${categoryId}/num`,
+    method: 'GET',
+  })
+}

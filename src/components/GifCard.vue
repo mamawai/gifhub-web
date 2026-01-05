@@ -215,8 +215,6 @@ onUnmounted(() => {
     0 4px 12px -2px rgba(0, 0, 0, 0.15),
     0 2px 6px -1px rgba(0, 0, 0, 0.1),
     0 0 0 1px rgba(0, 0, 0, 0.08);
-  break-inside: avoid; /* Essential for masonry */
-  margin-bottom: 1rem;
   cursor: pointer;
   transform-style: preserve-3d;
   will-change: transform;

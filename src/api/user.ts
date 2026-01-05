@@ -1,5 +1,7 @@
 import request from '@/utils/request'
+import axios from 'axios'
 import config from '@/config'
+import { getToken, removeToken } from '@/utils/auth'
 import type {
   EmailLoginDTO,
   LoginResultVO,
@@ -63,15 +65,28 @@ export function getUserInfo() {
 }
 
 /**
- * 获取用户上传的GIF列表
+ * 获取用户上传的GIF列表（返回完整响应以获取 message 中的 total）
  */
 export function getUserGifs(params: GetUserGifsParams) {
-  return request({
-    baseUrl: config.gifUrl,
-    url: `/gif/my`,
-    method: 'GET',
-    params,
-  })
+  return axios
+    .get<{
+      status: number
+      message: string
+      data: unknown
+    }>(`${config.gifUrl}/gif/my`, {
+      headers: { satoken: getToken() || '' },
+      params,
+    })
+    .then((res) => {
+      const data = res.data
+      if (data.status === 401) {
+        console.warn('Session expired')
+        removeToken()
+        window.location.href = '/login'
+        return Promise.reject(new Error('Session expired'))
+      }
+      return data
+    })
 }
 
 /**

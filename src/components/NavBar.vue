@@ -27,7 +27,6 @@ const notificationStore = useNotificationStore()
 const localeStore = useLocaleStore()
 const t = computed(() => messages[localeStore.locale].navbar)
 const isScrolled = ref(false)
-const isDark = ref(false)
 const showNavMenu = ref(false)
 const showActionsMenu = ref(false)
 const showNotifications = ref(false)
@@ -110,19 +109,12 @@ const handleClickOutside = (event: MouseEvent) => {
 }
 
 const toggleTheme = () => {
-  isDark.value = !isDark.value
-  if (isDark.value) {
-    document.documentElement.classList.add('dark')
-  } else {
-    document.documentElement.classList.remove('dark')
-  }
+  settingsStore.toggleDark()
 }
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
   document.addEventListener('click', handleClickOutside)
-  isDark.value = false
-  document.documentElement.classList.remove('dark')
 })
 
 onUnmounted(() => {
@@ -202,7 +194,7 @@ const navigateTo = (path: string) => {
           <span class="language-text">{{ localeStore.locale === 'zh-CN' ? '中' : 'EN' }}</span>
         </button>
 
-        <AnimatedThemeToggler :is-dark="isDark" @toggle="toggleTheme" />
+        <AnimatedThemeToggler :is-dark="settingsStore.isDark" @toggle="toggleTheme" />
 
         <!-- 视频设置按钮 -->
         <div ref="videoSettingsRef" class="video-settings-wrapper">
@@ -293,7 +285,7 @@ const navigateTo = (path: string) => {
             }}</span>
           </button>
           <button @click="toggleTheme" class="dropdown-item">
-            {{ isDark ? t.lightMode : t.darkMode }}
+            {{ settingsStore.isDark ? t.lightMode : t.darkMode }}
           </button>
           <!-- 移动端站内信入口 -->
           <button
@@ -394,7 +386,7 @@ const navigateTo = (path: string) => {
 
 /* Dark mode specific override via global selector or relying on transparent bg + var */
 :global(.dark) .navbar.is-scrolled {
-  background: rgba(9, 9, 11, 0.8);
+  background: rgba(26, 26, 30, 0.85);
 }
 
 .navbar-content {

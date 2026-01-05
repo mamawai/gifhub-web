@@ -558,6 +558,11 @@ const handleResetPassword = async () => {
           </div>
         </div>
       </div>
+
+      <!-- Copyright Notice -->
+      <div class="copyright">
+        <p>© {{ new Date().getFullYear() }} GifHub. All rights reserved.</p>
+      </div>
     </div>
 
     <!-- Register Modal (Glassmorphism) -->
@@ -1396,5 +1401,20 @@ input:focus + .field-icon,
   to {
     opacity: 1;
   }
+}
+
+/* Copyright Notice */
+.copyright {
+  text-align: center;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+}
+
+.copyright p {
+  margin: 0;
 }
 </style>

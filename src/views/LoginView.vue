@@ -1,19 +1,21 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Eye, EyeOff, Mail, Lock, MessageSquare, ArrowRight, Languages } from 'lucide-vue-next'
+import { ArrowRight, Eye, EyeOff, Languages, Lock, Mail, MessageSquare } from 'lucide-vue-next'
 import {
-  getCode,
   emailRegister,
+  getCode,
   getPublicKey,
-  sendResetPasswordCode,
-  resetPassword,
   ipPreCheck,
+  linuxDoCallback,
+  resetPassword,
+  sendResetPasswordCode,
 } from '@/api/user'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 import { useLocaleStore } from '@/stores/locale'
 import { messages } from '@/locales/messages'
+import config from '@/config'
 import rsaEncrypt from '@/utils/encrypt'
 import { generateFingerprint } from '@/utils/fingerprint'
 import type { ProxyCheckResponse } from '@/api/types'
@@ -138,6 +140,9 @@ const ipCheckLoading = ref(false)
 // 浏览器指纹
 const browserFingerprint = ref('')
 
+// OAuth 状态
+const oauthLoading = ref(false)
+
 // Validation
 const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
@@ -168,6 +173,7 @@ const switchTab = (tab: 'password' | 'code') => {
 
 // 组件挂载时初始化
 onMounted(() => {
+  handleOAuthCallback()
   initSecurityCheck()
 })
 
@@ -407,6 +413,48 @@ const handleResetPassword = async () => {
     appStore.showToast(error.message || t.value.resetPasswordFailed, 'error')
   }
 }
+
+// LinuxDo OAuth
+const handleLinuxDoLogin = () => {
+  const { clientId, redirectUri, authorizeUrl } = config.oauth.linuxdo
+  const state = Math.random().toString(36).substring(2, 10)
+  localStorage.setItem('oauth_state', state)
+
+  window.location.href = `${authorizeUrl}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`
+}
+
+const handleOAuthCallback = async () => {
+  const urlParams = new URLSearchParams(window.location.search)
+  const code = urlParams.get('code')
+  const state = urlParams.get('state')
+
+  if (!code || !state) return
+
+  const savedState = localStorage.getItem('oauth_state')
+  if (state !== savedState) {
+    appStore.showToast('安全验证失败', 'error')
+    return
+  }
+  localStorage.removeItem('oauth_state')
+
+  oauthLoading.value = true
+  try {
+    const fingerprint = browserFingerprint.value || (await generateFingerprint())
+    const result = await linuxDoCallback({ code, fingerprint })
+
+    if (result?.token) {
+      userStore.setToken(result.token)
+      await userStore.fetchUserInfo()
+      appStore.showToast('登录成功', 'success')
+      router.push('/')
+    }
+  } catch (err: unknown) {
+    const error = err as Error
+    appStore.showToast(error.message || 'LinuxDo 登录失败', 'error')
+  } finally {
+    oauthLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -534,6 +582,21 @@ const handleResetPassword = async () => {
             <ArrowRight v-if="!loading" :size="20" />
           </button>
 
+          <!-- OAuth 分隔线 -->
+          <div class="oauth-divider">
+            <span>{{ localeStore.locale === 'zh-CN' ? '或' : 'OR' }}</span>
+          </div>
+
+          <!-- LinuxDo 登录按钮 -->
+          <button class="oauth-btn linuxdo" @click="handleLinuxDoLogin">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path
+                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"
+              />
+            </svg>
+            <span>LinuxDo {{ localeStore.locale === 'zh-CN' ? '登录' : 'Login' }}</span>
+          </button>
+
           <!-- ProxyCheck 风险显示 -->
           <div v-if="proxyCheckData" class="risk-display">
             <div class="risk-item">
@@ -648,10 +711,16 @@ const handleResetPassword = async () => {
     </div>
 
     <!-- 全屏加载提示 -->
-    <div v-if="registerLoading" class="fullscreen-loading">
+    <div v-if="registerLoading || oauthLoading" class="fullscreen-loading">
       <div class="loading-content">
         <div class="spinner-large"></div>
-        <p class="loading-text">创建账户中...</p>
+        <p class="loading-text">
+          {{
+            oauthLoading
+              ? (localeStore.locale === 'zh-CN' ? 'LinuxDo 登录中请稍等...' : 'Logging in with LinuxDo...')
+              : (localeStore.locale === 'zh-CN' ? '创建账户中请稍等...' : 'Creating account...')
+          }}
+        </p>
       </div>
     </div>
   </div>
@@ -1416,5 +1485,54 @@ input:focus + .field-icon,
 
 .copyright p {
   margin: 0;
+}
+
+/* OAuth 分隔线 */
+.oauth-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: #71717a;
+  font-size: 0.85rem;
+}
+
+.oauth-divider::before,
+.oauth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* OAuth 按钮 */
+.oauth-btn {
+  width: 100%;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.oauth-btn.linuxdo {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+.oauth-btn.linuxdo:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.2);
+}
+
+.oauth-btn.linuxdo:active {
+  transform: translateY(0);
 }
 </style>

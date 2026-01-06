@@ -174,3 +174,14 @@ export function ipPreCheck() {
     method: 'POST',
   })
 }
+
+/**
+ * LinuxDo OAuth 回调
+ */
+export function linuxDoCallback(data: { code: string; fingerprint: string }) {
+  return request<LoginResultVO>({
+    url: '/user/oauth/linuxdo/callback',
+    method: 'POST',
+    data,
+  })
+}

@@ -6,6 +6,15 @@ export default {
   // baseUrl: 'http://localhost:8083',
   // gifUrl: 'http://localhost:8080',
 
+  // LinuxDo OAuth
+  oauth: {
+    linuxdo: {
+      clientId: '2l34NtD3bAZ06SZMEPqixeJg527NO88U',
+      redirectUri: 'https://app.mynnmy.top/login',
+      authorizeUrl: 'https://connect.linux.do/oauth2/authorize',
+    },
+  },
+
   // 应用信息
   appInfo: {
     name: 'gif-hub-web',

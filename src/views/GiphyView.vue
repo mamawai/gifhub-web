@@ -141,6 +141,8 @@ const handleLike = async () => {
       username: selectedGif.value.username,
       source: selectedGif.value.source,
       title: selectedGif.value.title,
+      width: selectedGif.value.width,
+      height: selectedGif.value.height,
     })
     showModal.value = false
     appStore.showToast(t.value.thankYouLike, 'success')

@@ -189,6 +189,8 @@ export function likeGiphy(data: {
   source?: string
   description?: string
   title?: string
+  width?: number | string
+  height?: number | string
 }) {
   return request({
     baseUrl: config.gifUrl,

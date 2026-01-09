@@ -430,12 +430,17 @@ const handleOAuthCallback = async () => {
 
   if (!code || !state) return
 
-  const savedState = localStorage.getItem('oauth_state')
-  if (state !== savedState) {
-    appStore.showToast('安全验证失败', 'error')
-    return
+  // 检测是否来自油猴插件
+  const isFromPlugin = state === 'gifhub-plugin'
+
+  if (!isFromPlugin) {
+    const savedState = localStorage.getItem('oauth_state')
+    if (state !== savedState) {
+      appStore.showToast('安全验证失败', 'error')
+      return
+    }
+    localStorage.removeItem('oauth_state')
   }
-  localStorage.removeItem('oauth_state')
 
   oauthLoading.value = true
   try {
@@ -443,6 +448,13 @@ const handleOAuthCallback = async () => {
     const result = await linuxDoCallback({ code, fingerprint })
 
     if (result?.token) {
+      // 如果来自插件，通过 postMessage 发送 token 并关闭窗口
+      if (isFromPlugin && window.opener) {
+        window.opener.postMessage({ type: 'gifhub-oauth-token', token: result.token }, 'https://linux.do')
+        window.close()
+        return
+      }
+
       userStore.setToken(result.token)
       await userStore.fetchUserInfo()
       appStore.showToast('登录成功', 'success')
